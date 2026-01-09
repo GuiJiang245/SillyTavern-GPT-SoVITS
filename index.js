@@ -178,7 +178,24 @@
             else if (status === 'error') $btn.addClass('error');
         },
         getTaskKey(charName, text) { return `${charName}_${text}`; },
+        // === 新增：模型完整性校验函数 ===
+        validateModel(modelName, config) {
+            let missing = [];
+            // 检查后端返回的数据中，路径是否为空
+            if (!config.gpt_path) missing.push("GPT权重(.ckpt)");
+            if (!config.sovits_path) missing.push("SoVITS权重(.pth)");
+            // 检查是否有参考音频 (既没有默认音频，也没有情感音频列表)
+            if (!config.default_ref && (!config.emotion_refs || config.emotion_refs.length === 0)) {
+                missing.push("参考音频(.wav/.mp3)");
+            }
 
+            if (missing.length > 0) {
+                // 使用上一轮添加的顶部提示条
+                showNotification(`❌ 模型 "${modelName}" 文件缺失: ${missing.join(', ')}`, 'error');
+                return false;
+            }
+            return true;
+        },
         scanAndSchedule() {
             // 如果总开关关闭，不执行扫描
             if (CACHE.settings.enabled === false) return;
@@ -220,7 +237,16 @@
             for (const modelName of Object.keys(groups)) {
                 const tasks = groups[modelName];
                 const modelConfig = CACHE.models[modelName];
-                if (!modelConfig) continue;
+                // 如果模型配置不存在，或者 校验缺失文件
+                if (!modelConfig || !this.validateModel(modelName, modelConfig)) {
+                    console.warn(`[TTS] Model ${modelName} is missing files. Skipping generation.`);
+                    // 将该组所有任务标记为 Error，并不发送请求
+                    tasks.forEach(t => {
+                        this.updateStatus(t.$btn, 'error');
+                        CACHE.pendingTasks.delete(t.key);
+                    });
+                    continue; // 直接跳过，不执行后面的 switchModel 和 processSingleTask
+                }
                 const checkPromises = tasks.map(async (task) => {
                     if (CACHE.audioMemory[task.key]) return { task, cached: true };
                     const cached = await this.checkCache(task, modelConfig);
