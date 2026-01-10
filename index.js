@@ -1,6 +1,7 @@
 (function () {
-    const SOVITS_API = "http://127.0.0.1:9880";
-    const MANAGER_API = "http://127.0.0.1:3000";
+    // 动态获取当前 IP，确保手机能连上 manager
+    const currentHost = window.location.hostname;
+    const MANAGER_API = `http://${currentHost}:3000`;
 
     let CACHE = {
         // 默认 enabled: true
@@ -12,22 +13,22 @@
     function injectStyles() {
         if ($('#tts-style-injection').length > 0) return;
         const css = `
-        /* === 1. 设置按钮样式 === */
+        /* === 1. 悬浮球按钮 === */
         #tts-manager-btn {
             position: fixed; top: 10px; right: 100px; z-index: 20000;
             background: rgba(0,0,0,0.7); color: #fff; padding: 6px 12px;
             border-radius: 4px; cursor: pointer; border: 1px solid rgba(255,255,255,0.3);
             font-size: 13px;
+            touch-action: none; user-select: none; /* 防止拖拽滚动 */
         }
-        #tts-manager-btn:hover { background: rgba(0,0,0,0.9); }
 
-        /* === 新增：顶部错误提示条样式 === */
+        /* === 2. 气泡与动画 === */
         #tts-notification-bar {
             position: fixed; top: -50px; left: 50%; transform: translateX(-50%);
             z-index: 20005; background: #d32f2f; color: white;
             padding: 8px 20px; border-radius: 4px; box-shadow: 0 2px 10px rgba(0,0,0,0.3);
             font-size: 14px; transition: top 0.5s ease; pointer-events: none;
-            display: flex; align-items: center; gap: 8px;
+            display: flex; align-items: center; gap: 8px; width: 90%; justify-content: center;
         }
         #tts-notification-bar.show { top: 20px; }
 
@@ -39,50 +40,77 @@
             box-shadow: 0 1px 1px rgba(0,0,0,0.1); white-space: nowrap; font-size: 13px;
         }
         .voice-bubble:hover { filter: brightness(0.95); }
-
-
         .voice-bubble.playing .sovits-voice-bar { animation: sovits-wave-anim 1.2s infinite ease-in-out; }
         .sovits-voice-waves { display: flex; align-items: center; justify-content: flex-end; gap: 2px; width: 18px; height: 16px; }
         .sovits-voice-bar { width: 3px; background: #333; border-radius: 1.5px; opacity: 0.8; height: 6px; }
-
         @keyframes sovits-wave-anim {
             0%, 100% { height: 6px; opacity: 0.5; }
             50% { height: 14px; opacity: 1; }
         }
-
         .voice-bubble.error { background: #ffcccc !important; border: 1px solid #ffaaaa; }
         .voice-bubble.loading { opacity: 0.6; filter: grayscale(0.5); cursor: wait; }
 
-        /* === 3. 控制面板样式 (完全保持原样) === */
+        /* === 3. 控制面板样式 (修复手机显示不全) === */
         .tts-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0, 0, 0, 0.6); z-index: 20001;
-            display: flex; align-items: center; justify-content: center;
+            /* 关键修改1：父容器只负责铺满，不负责强制对齐 */
+            display: flex;
+            /* 允许点击遮罩层关闭时的触摸穿透处理（可选） */
         }
         .tts-panel {
-            background: #2b2b2b; color: #eee; width: 500px; max-height: 85vh;
+            background: #2b2b2b; color: #eee;
+
+            /* 关键修改2：使用 margin: auto 实现“智能居中” */
+            /* 空间够时它会居中；空间不够(如下半部分被键盘顶住)时，它会优先显示顶部 */
+            margin: auto;
+
+            width: 95%;
+            max-width: 500px;
+
+            /* 关键修改3：降低最大高度，给手机浏览器地址栏和底部工具栏留余地 */
+            max-height: 75vh;
+
             border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.5);
-            display: flex; flex-direction: column; overflow: hidden;
+
+            /* 关键修改4：确保伸缩布局正确，让中间内容区能滚动 */
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
             border: 1px solid #444; font-family: sans-serif;
         }
         .tts-header {
-            padding: 15px; background: #222; border-bottom: 1px solid #444;
+            padding: 12px 15px; background: #222; border-bottom: 1px solid #444;
             display: flex; justify-content: space-between; align-items: center;
+            flex-shrink: 0; /* 防止头部被压缩 */
         }
         .tts-header h3 { margin: 0; font-size: 16px; }
         .tts-close {
             background: none; border: none; color: #aaa; font-size: 24px;
-            cursor: pointer; line-height: 1;
+            cursor: pointer; line-height: 1; padding: 0 5px;
         }
-        .tts-content { padding: 15px; overflow-y: auto; }
+        .tts-content {
+            padding: 15px;
+            /* 关键修改5：flex: 1 让这个区域自动填满剩余空间，并负责滚动 */
+            flex: 1;
+            overflow-y: auto;
+            min-height: 0; /* 防止 flex 子项无法滚动的兼容性 bug */
+            -webkit-overflow-scrolling: touch;
+        }
+
         .tts-settings-zone input[type="text"] {
             background: #1a1a1a; border: 1px solid #444; color: #fff;
             padding: 4px; border-radius: 3px; margin-top: 2px;
         }
         .tts-add-zone, .tts-list-zone { margin-top: 15px; }
-        .tts-row, .tts-sub-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
+
+        /* 让输入框在手机上自动换行，避免挤压 */
+        .tts-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; flex-wrap: wrap; }
+        .tts-sub-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; flex-wrap: wrap; }
+
         .tts-row input, .tts-row select {
-            flex: 1; background: #333; color: white; border: 1px solid #555; padding: 5px;
+            flex: 1; background: #333; color: white; border: 1px solid #555; padding: 8px 5px; /* 手机上增加点点击区域 */
+            min-width: 100px; /* 防止缩得太小 */
         }
         .tts-list-container {
             border: 1px solid #444; background: #1f1f1f; max-height: 200px; overflow-y: auto;
@@ -94,9 +122,9 @@
         }
         .tts-list-item:last-child { border-bottom: none; }
         .col-name { font-weight: bold; color: #81c784; }
-        .col-model { color: #aaa; margin-left: 10px; flex: 1; }
-        .btn-blue { background: #1976d2; color: white; border: none; border-radius: 3px; cursor: pointer; }
-        .btn-red { background: #d32f2f; color: white; border: none; padding: 2px 8px; border-radius: 3px; cursor: pointer; }
+        .col-model { color: #aaa; margin-left: 10px; flex: 1; word-break: break-all; /* 防止长路径撑开 */ }
+        .btn-blue { background: #1976d2; color: white; border: none; border-radius: 3px; cursor: pointer; padding: 6px 12px;}
+        .btn-red { background: #d32f2f; color: white; border: none; padding: 4px 10px; border-radius: 3px; cursor: pointer; }
     `;
         $('head').append(`<style id="tts-style-injection">${css}</style>`);
     }
@@ -313,11 +341,23 @@
                 return (await res.json()).cached === true;
             } catch { return false; }
         },
-        async switchModel(config) {
+        async  switchModel(config) {
             if (CURRENT_LOADED.gpt_path === config.gpt_path && CURRENT_LOADED.sovits_path === config.sovits_path) return;
-            const safeSwitch = async (url) => { await fetch(url, { method: 'GET', mode: 'no-cors' }); };
-            if (CURRENT_LOADED.gpt_path !== config.gpt_path) { await safeSwitch(`${SOVITS_API}/set_gpt_weights?weights_path=${config.gpt_path}`); CURRENT_LOADED.gpt_path = config.gpt_path; }
-            if (CURRENT_LOADED.sovits_path !== config.sovits_path) { await safeSwitch(`${SOVITS_API}/set_sovits_weights?weights_path=${config.sovits_path}`); CURRENT_LOADED.sovits_path = config.sovits_path; }
+
+            // 修改：不再请求 SOVITS_API，而是请求 MANAGER_API 的代理接口
+            const safeSwitch = async (endpoint, path) => {
+                // 注意这里使用的是 MANAGER_API
+                await fetch(`${MANAGER_API}/${endpoint}?weights_path=${path}`);
+            };
+
+            if (CURRENT_LOADED.gpt_path !== config.gpt_path) {
+                await safeSwitch('proxy_set_gpt_weights', config.gpt_path);
+                CURRENT_LOADED.gpt_path = config.gpt_path;
+            }
+            if (CURRENT_LOADED.sovits_path !== config.sovits_path) {
+                await safeSwitch('proxy_set_sovits_weights', config.sovits_path);
+                CURRENT_LOADED.sovits_path = config.sovits_path;
+            }
         },
         async processSingleTask(task, modelConfig) {
             const { text, emotion, key, $btn } = task;
@@ -369,7 +409,91 @@
         }
     };
 
-    function initUI() { if ($('#tts-manager-btn').length === 0) { $('body').append(`<div id="tts-manager-btn">🔊 TTS配置</div>`); $('#tts-manager-btn').on('click', showDashboard); } }
+    // === 新增：通用的拖拽函数 ===
+    function makeDraggable($el, onClick) {
+        let isDragging = false;
+        let hasMoved = false; // 用于区分是“点击”还是“拖拽”
+        let startX, startY, startLeft, startTop;
+
+        const el = $el[0]; // 获取原生 DOM 元素
+
+        // 开始拖拽 (兼容鼠标和触摸)
+        const start = (clientX, clientY) => {
+            isDragging = true;
+            hasMoved = false;
+            startX = clientX;
+            startY = clientY;
+
+            const rect = el.getBoundingClientRect();
+            startLeft = rect.left;
+            startTop = rect.top;
+
+            // 拖拽开始时，将 right 属性清除，改用 left/top 定位，否则拖不动
+            el.style.right = 'auto';
+            el.style.left = startLeft + 'px';
+            el.style.top = startTop + 'px';
+
+            $el.css('opacity', '0.8'); // 拖拽时稍微变透明
+        };
+
+        // 移动中
+        const move = (clientX, clientY) => {
+            if (!isDragging) return;
+
+            const dx = clientX - startX;
+            const dy = clientY - startY;
+
+            // 只有移动超过一定距离才算拖拽，防止手抖误判
+            if (Math.abs(dx) > 2 || Math.abs(dy) > 2) {
+                hasMoved = true;
+            }
+
+            el.style.left = (startLeft + dx) + 'px';
+            el.style.top = (startTop + dy) + 'px';
+        };
+
+        // 结束拖拽
+        const end = () => {
+            isDragging = false;
+            $el.css('opacity', '1');
+            // 如果没有发生明显的移动，则视为点击
+            if (!hasMoved && onClick) {
+                onClick();
+            }
+        };
+
+        // --- 鼠标事件监听 ---
+        $el.on('mousedown', e => { start(e.clientX, e.clientY); });
+        $(document).on('mousemove', e => { if(isDragging) { e.preventDefault(); move(e.clientX, e.clientY); }});
+        $(document).on('mouseup', () => { if(isDragging) end(); });
+
+        // --- 触摸事件监听 (手机端) ---
+        $el.on('touchstart', e => {
+            const touch = e.originalEvent.touches[0];
+            start(touch.clientX, touch.clientY);
+        });
+        // 手机端需要在 document 上监听 move 以防止拖出按钮范围失效，但 touchmove 默认是 passive 的
+        // 这里直接绑定在元素上通常够用，或者用 passive: false
+        $el.on('touchmove', e => {
+            if(isDragging) {
+                // 阻止浏览器默认滚动
+                if(e.cancelable) e.preventDefault();
+                const touch = e.originalEvent.touches[0];
+                move(touch.clientX, touch.clientY);
+            }
+        });
+        $el.on('touchend', () => { if(isDragging) end(); });
+    }
+
+    // === 修改后的 initUI ===
+    function initUI() {
+        if ($('#tts-manager-btn').length === 0) {
+            $('body').append(`<div id="tts-manager-btn">🔊 TTS配置</div>`);
+
+            // 使用新的拖拽绑定，传入原来的点击回调 showDashboard
+            makeDraggable($('#tts-manager-btn'), showDashboard);
+        }
+    }
 
     function showDashboard() {
         $('#tts-dashboard-overlay').remove();

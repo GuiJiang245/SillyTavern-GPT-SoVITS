@@ -215,6 +215,28 @@ def get_data():
     mappings = load_json(MAPPINGS_FILE)
     return { "models": models_data, "mappings": mappings, "settings": settings }
 
+# === 新增：模型切换代理接口 ===
+@app.get("/proxy_set_gpt_weights")
+def proxy_set_gpt_weights(weights_path: str):
+    try:
+        # manager 帮你去请求本地的 SoVITS
+        url = f"{SOVITS_HOST}/set_gpt_weights"
+        resp = requests.get(url, params={"weights_path": weights_path}, timeout=10)
+        return {"status": resp.status_code, "detail": resp.text}
+    except Exception as e:
+        print(f"Set GPT Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/proxy_set_sovits_weights")
+def proxy_set_sovits_weights(weights_path: str):
+    try:
+        url = f"{SOVITS_HOST}/set_sovits_weights"
+        resp = requests.get(url, params={"weights_path": weights_path}, timeout=10)
+        return {"status": resp.status_code, "detail": resp.text}
+    except Exception as e:
+        print(f"Set SoVITS Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+# ============================
 @app.get("/tts_proxy")
 def tts_proxy(text: str, text_lang: str, ref_audio_path: str, prompt_text: str, prompt_lang: str, streaming_mode: str, check_only: Optional[str] = None):
     try:
@@ -333,4 +355,5 @@ def update(req: SettingsRequest):
     init_settings() # 刷新全局变量
     return {"status": "success", "settings": s}
 if __name__ == "__main__":
-    uvicorn.run(app, host="127.0.0.1", port=3000)
+    # 必须是 0.0.0.0，否则手机连不上 manager
+    uvicorn.run(app, host="0.0.0.0", port=3000)
