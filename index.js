@@ -1,13 +1,34 @@
 (function () {
-    // 动态获取当前 IP，确保手机能连上 manager
-    const currentHost = window.location.hostname;
-    const MANAGER_API = `http://${currentHost}:3000`;
+    // ================= 配置区域 =================
+    // 1. 读取本地存储配置 (这是开关的核心，存了 IP 和 开关状态)
+    const lsConfig = localStorage.getItem('tts_plugin_remote_config');
+    let remoteConfig = lsConfig ? JSON.parse(lsConfig) : { useRemote: false, ip: "" };
+
+    // 2. 动态决定 API 地址逻辑
+    let apiHost = "127.0.0.1";
+
+    if (remoteConfig.useRemote && remoteConfig.ip) {
+        // A. 如果用户手动开了开关并填了 IP (针对 Termux 情况)
+        apiHost = remoteConfig.ip;
+    } else {
+        // B. 智能自动模式 (针对 电脑本地 或 手机直接访问电脑网页 情况)
+        // 如果当前浏览器地址栏是 localhost 或 127.0.0.1，就用本地
+        // 如果当前地址栏是 192.168.x.x，就自动沿用这个 IP
+        const current = window.location.hostname;
+        apiHost = (current === 'localhost' || current === '127.0.0.1') ? '127.0.0.1' : current;
+    }
+
+    // 最终生成的 API 地址
+    const MANAGER_API = `http://${apiHost}:3000`;
+
+
+    // ===========================================
 
     let CACHE = {
-        // 默认 enabled: true
         models: {}, mappings: {}, settings: { auto_generate: true, enabled: true },
         audioMemory: {}, pendingTasks: new Set()
     };
+
     let CURRENT_LOADED = { gpt_path: null, sovits_path: null };
 
     function injectStyles() {
@@ -502,6 +523,12 @@
         // 获取开关状态
         const isEnabled = CACHE.settings.enabled !== false;
 
+        // 获取当前的配置用于回显
+        const savedConfig = localStorage.getItem('tts_plugin_remote_config');
+        const config = savedConfig ? JSON.parse(savedConfig) : { useRemote: false, ip: "" };
+        const isRemote = config.useRemote;
+        const remoteIP = config.ip;
+
         const html = `
         <div id="tts-dashboard-overlay" class="tts-overlay">
             <div id="tts-dashboard" class="tts-panel">
@@ -510,7 +537,28 @@
                     <button class="tts-close" onclick="$('#tts-dashboard-overlay').remove()">×</button>
                 </div>
                 <div class="tts-content">
+                <div class="tts-settings-zone" style="background:rgba(0, 0, 0, 0.15); padding:10px; border-radius:5px; margin-bottom:10px;">
+                    <h4 style="margin:0 0 10px 0;">⚙️ 连接与系统设置</h4>
 
+                    <div style="background:rgba(0,0,0,0.2); padding:8px; border-radius:4px; margin-bottom:8px; border:1px solid #555;">
+                        <div style="margin-bottom:5px; font-weight:bold; color:#64b5f6;">📡 远程/手机模式</div>
+
+                        <label style="cursor:pointer; display:block; margin-bottom:5px;">
+                            <input type="checkbox" id="tts-remote-switch" ${isRemote ? 'checked' : ''}>
+                            开启远程连接 (连接到电脑)
+                        </label>
+
+                        <div id="tts-remote-input-area" style="display:${isRemote ? 'block' : 'none'}; margin-top:5px;">
+                            <small>电脑局域网 IP:</small>
+                            <div style="display:flex; gap:5px;">
+                                <input type="text" id="tts-remote-ip" value="${remoteIP}" placeholder="例如 192.168.1.10" style="flex:1;">
+                                <button id="tts-save-remote" class="btn-blue" style="padding:4px 8px;">保存并刷新</button>
+                            </div>
+                            <div style="font-size:11px; color:#aaa; margin-top:3px;">
+                                当前连接地址: <strong>${MANAGER_API}</strong>
+                            </div>
+                        </div>
+                    </div>
                     <div class="tts-settings-zone" style="background:rgba(0, 0, 0, 0.15); padding:10px; border-radius:5px; margin-bottom:10px;">
                         <h4 style="margin:0 0 10px 0;">⚙️ 系统设置</h4>
 
@@ -581,7 +629,29 @@
         $('#tts-toggle-auto').change(function() { toggleAutoGenerate($(this).is(':checked')); });
         // 设置当前选中的语言
         $('#tts-lang-select').val(CACHE.settings.default_lang || 'default');
+        // === 新增：远程开关切换事件 ===
+        $('#tts-remote-switch').change(function() {
+            const checked = $(this).is(':checked');
+            if(checked) {
+                $('#tts-remote-input-area').slideDown();
+            } else {
+                $('#tts-remote-input-area').slideUp();
+                // 如果关闭开关，直接保存并刷新回 localhost
+                const ip = $('#tts-remote-ip').val().trim(); // 保留IP不清除
+                localStorage.setItem('tts_plugin_remote_config', JSON.stringify({ useRemote: false, ip: ip }));
+                location.reload(); // 刷新页面以应用新的 API 地址
+            }
+        });
 
+        // === 新增：保存 IP 并刷新 ===
+        $('#tts-save-remote').click(function() {
+            const ip = $('#tts-remote-ip').val().trim();
+            if(!ip) { alert("请输入 IP 地址"); return; }
+
+            localStorage.setItem('tts_plugin_remote_config', JSON.stringify({ useRemote: true, ip: ip }));
+            alert("设置已保存，页面将刷新以连接新地址。");
+            location.reload(); // 必须刷新才能让顶部的 const MANAGER_API 生效
+        });
         // 绑定变更事件，保存设置
         $('#tts-lang-select').change(async function() {
             const lang = $(this).val();
