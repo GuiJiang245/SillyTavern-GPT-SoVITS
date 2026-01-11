@@ -418,7 +418,7 @@
 
                 const params = new URLSearchParams({
                     text: text,
-                    text_lang: "zh", // 目标生成的文本语言，通常保持 zh 或根据实际情况
+                    text_lang: promptLangCode, // 目标生成的文本语言，通常保持 zh 或根据实际情况
                     ref_audio_path: ref.path,
                     prompt_text: ref.text,
                     prompt_lang: promptLangCode, // 参考音频的语言
