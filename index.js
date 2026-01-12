@@ -23,26 +23,29 @@
     const utilsURL = `${MANAGER_API}/static/js/utils.js`;
     const apiURL = `${MANAGER_API}/static/js/api.js`;
     const uiURL = `${MANAGER_API}/static/js/ui.js`;
-    // 链式加载： Utils -> API -> UI -> Init
+    const stateURL = `${MANAGER_API}/static/js/state.js`;
+    // 链式加载： Utils -> API -> 【State】 -> UI -> Init
     $.getScript(utilsURL).done(function() {
-        // [新增] 加载 API
         $.getScript(apiURL).done(function() {
-            // 加载 UI
-            $.getScript(uiURL).done(function() {
-                console.log("✅ [Loader] 所有模块加载完毕");
-                initPlugin();
+            // 【新增】加载 State
+            $.getScript(stateURL).done(function() {
+                $.getScript(uiURL).done(function() {
+                    console.log("✅ [Loader] 所有模块加载完毕");
+                    initPlugin();
+                });
             });
         });
     }).fail(function() {
-        // 简单的备用兼容逻辑
         console.error("❌ 核心模块加载失败");
     });
 
     // ================================================
     // 将原本 index.js 的剩余所有逻辑包裹进这个主函数
     function initPlugin() {
-        // 重新获取 Utils 对象 (此时它肯定存在了)
+        // 重新获取 Utils 对象
         window.TTS_API.init(MANAGER_API);
+        // 【新增】初始化 State (虽然目前里面只是打印个日志)
+        window.TTS_State.init();
         const TTS_Utils = window.TTS_Utils;
 
         // 【修改】使用 Utils 加载 CSS
@@ -60,15 +63,8 @@
                 } catch(e) {}
             });
         });
-        // ... CACHE 和 CURRENT_LOADED 定义 ...
-        // ===========================================
-
-        let CACHE = {
-            models: {}, mappings: {}, settings: { auto_generate: true, enabled: true },
-            audioMemory: {}, pendingTasks: new Set()
-        };
-
-        let CURRENT_LOADED = { gpt_path: null, sovits_path: null };
+        const CACHE = window.TTS_State.CACHE;
+        const CURRENT_LOADED = window.TTS_State.CURRENT_LOADED;
 
         async function refreshData() {
             try {
