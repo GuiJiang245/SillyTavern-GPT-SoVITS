@@ -21,9 +21,48 @@
     // 最终生成的 API 地址
     const MANAGER_API = `http://${apiHost}:3000`;
 
-    // 【新增】全局变量，用于存储从文件加载的 CSS 字符串
-    let GLOBAL_STYLE_CONTENT = "";
+    // ================= 动态加载 Utils =================
+    console.log("🔵 [Loader] 正在从 Python 后端加载 utils.js ...");
 
+    // 注意：根据你的报错，utils.js 似乎在 frontend/js/ 目录下
+    // manager.py 把 frontend 挂载到了 /static
+    // 所以路径应该是 /static/js/utils.js
+    const utilsURL = `${MANAGER_API}/static/js/utils.js`;
+
+    // 使用 jQuery 动态加载脚本
+    $.getScript(utilsURL)
+        .done(function() {
+        console.log("✅ [Loader] utils.js 加载成功，启动主逻辑。");
+        initPlugin(); // 加载成功后，才运行原来的逻辑
+    })
+        .fail(function(jqxhr, settings, exception) {
+        console.error("❌ [Loader] 无法加载 utils.js，请检查 manager.py 是否运行，以及文件路径是否正确。");
+        console.error("尝试的地址:", utilsURL);
+        // 备用尝试：如果文件不在 js 子文件夹里，尝试直接在 static 下找
+        $.getScript(`${MANAGER_API}/static/utils.js`).done(() => initPlugin());
+    });
+
+    // ================================================
+    // 将原本 index.js 的剩余所有逻辑包裹进这个主函数
+    function initPlugin() {
+        // 重新获取 Utils 对象 (此时它肯定存在了)
+        const TTS_Utils = window.TTS_Utils;
+
+    // 【修改】使用 Utils 加载 CSS
+    TTS_Utils.loadGlobalCSS(`${MANAGER_API}/static/css/style.css`, (cssContent) => {
+        // 回调：CSS加载完毕后，手动触发一次 Iframe 扫描，解决穿透时序问题
+        processMessageContent();
+
+        // 双重保险：强制遍历现有 iframe 注入
+        $('iframe').each(function() {
+            try {
+                const head = $(this).contents().find('head');
+                if (head.length > 0 && head.find('#sovits-iframe-style').length === 0) {
+                    head.append(`<style id='sovits-iframe-style'>${cssContent}</style>`);
+                }
+            } catch(e) {}
+        });
+    });
     // ... CACHE 和 CURRENT_LOADED 定义 ...
     // ===========================================
 
@@ -34,69 +73,9 @@
 
     let CURRENT_LOADED = { gpt_path: null, sovits_path: null };
 
-    // 【修改】注入样式函数：现在直接使用全局变量
-    function injectStyles() {
-        // 如果 CSS 还没加载回来，或者已经注入过了，就跳过
-        if (!GLOBAL_STYLE_CONTENT || $('#tts-style-injection').length > 0) return;
-
-        $('head').append(`<style id="tts-style-injection">${GLOBAL_STYLE_CONTENT}</style>`);
-    }
-    // 【修改】从后端加载 CSS 文件 (增强版)
-    async function loadGlobalCSS() {
-        try {
-            const res = await fetch(`${MANAGER_API}/static/css/style.css`);
-            if (res.ok) {
-                GLOBAL_STYLE_CONTENT = await res.text();
-                console.log("[TTS] Style loaded successfully.");
-
-                // 1. 立即注入主界面
-                injectStyles();
-
-                // 2. 【核心修复】CSS到位后，强制重新扫描一遍 Iframe 并注入
-                // 因为之前页面刚加载时 CSS 是空的，导致 Iframe 也是“裸奔”状态
-                // 重新调用这个主逻辑函数，它会读取现在有值的 GLOBAL_STYLE_CONTENT 并注入
-                processMessageContent();
-
-                // 3. 【双重保险】手动遍历现有 iframe 强行注入
-                // 防止 processMessageContent 因为某些防抖逻辑没立刻执行
-                $('iframe').each(function() {
-                    try {
-                        const head = $(this).contents().find('head');
-                        if (head.length > 0 && head.find('#sovits-iframe-style').length === 0) {
-                            head.append(`<style id='sovits-iframe-style'>${GLOBAL_STYLE_CONTENT}</style>`);
-                        }
-                    } catch(e) { /* 忽略跨域错误 */ }
-                });
-
-            } else {
-                console.error("[TTS] Failed to load style.css. Status:", res.status);
-            }
-        } catch (e) {
-            console.error("[TTS] CSS Load Error:", e);
-        }
-    }
-
-    // 【新增】启动时立即加载 CSS
-    loadGlobalCSS();
-
-    // 新增：显示顶部提示
-    function showNotification(msg, type = 'error') {
-        let $bar = $('#tts-notification-bar');
-        if ($bar.length === 0) {
-            $('body').append(`<div id="tts-notification-bar"></div>`);
-            $bar = $('#tts-notification-bar');
-        }
-
-        const bgColor = type === 'error' ? '#d32f2f' : '#43a047';
-        $bar.text(msg).css('background', bgColor).addClass('show');
-
-        // 3秒后自动消失
-        setTimeout(() => { $bar.removeClass('show'); }, 4000);
-    }
-
     async function refreshData() {
         try {
-            injectStyles();
+            TTS_Utils.injectStyles();
             // 尝试连接后端
             const res = await fetch(`${MANAGER_API}/get_data`);
             // === 读取本地存储的美化卡开关 ===
@@ -122,7 +101,7 @@
 
             // === 这里是新增的错误处理 ===
             // 1. 弹出顶部提示
-            showNotification("❌ 连接失败：未检测到 TTS 后端服务！请检查是否已运行 main.py", "error");
+            TTS_Utils.showNotification("❌ 连接失败：未检测到 TTS 后端服务！请检查是否已运行 main.py", "error");
 
             // 2. 将右上角按钮标红，警示用户
             $('#tts-manager-btn').css({ 'border-color': '#ff5252', 'color': '#ff5252' }).text('⚠️ TTS断开');
@@ -173,7 +152,7 @@
             }
 
             if (missing.length > 0) {
-                showNotification(`❌ 模型 "${modelName}" 缺失: ${missing.join(', ')}`, 'error');
+                TTS_Utils.showNotification(`❌ 模型 "${modelName}" 缺失: ${missing.join(', ')}`, 'error');
                 return false;
             }
             return true;
@@ -389,89 +368,13 @@
         }
     };
 
-    // === 新增：通用的拖拽函数 ===
-    function makeDraggable($el, onClick) {
-        let isDragging = false;
-        let hasMoved = false; // 用于区分是“点击”还是“拖拽”
-        let startX, startY, startLeft, startTop;
-
-        const el = $el[0]; // 获取原生 DOM 元素
-
-        // 开始拖拽 (兼容鼠标和触摸)
-        const start = (clientX, clientY) => {
-            isDragging = true;
-            hasMoved = false;
-            startX = clientX;
-            startY = clientY;
-
-            const rect = el.getBoundingClientRect();
-            startLeft = rect.left;
-            startTop = rect.top;
-
-            // 拖拽开始时，将 right 属性清除，改用 left/top 定位，否则拖不动
-            el.style.right = 'auto';
-            el.style.left = startLeft + 'px';
-            el.style.top = startTop + 'px';
-
-            $el.css('opacity', '0.8'); // 拖拽时稍微变透明
-        };
-
-        // 移动中
-        const move = (clientX, clientY) => {
-            if (!isDragging) return;
-
-            const dx = clientX - startX;
-            const dy = clientY - startY;
-
-            // 只有移动超过一定距离才算拖拽，防止手抖误判
-            if (Math.abs(dx) > 2 || Math.abs(dy) > 2) {
-                hasMoved = true;
-            }
-
-            el.style.left = (startLeft + dx) + 'px';
-            el.style.top = (startTop + dy) + 'px';
-        };
-
-        // 结束拖拽
-        const end = () => {
-            isDragging = false;
-            $el.css('opacity', '1');
-            // 如果没有发生明显的移动，则视为点击
-            if (!hasMoved && onClick) {
-                onClick();
-            }
-        };
-
-        // --- 鼠标事件监听 ---
-        $el.on('mousedown', e => { start(e.clientX, e.clientY); });
-        $(document).on('mousemove', e => { if(isDragging) { e.preventDefault(); move(e.clientX, e.clientY); }});
-        $(document).on('mouseup', () => { if(isDragging) end(); });
-
-        // --- 触摸事件监听 (手机端) ---
-        $el.on('touchstart', e => {
-            const touch = e.originalEvent.touches[0];
-            start(touch.clientX, touch.clientY);
-        });
-        // 手机端需要在 document 上监听 move 以防止拖出按钮范围失效，但 touchmove 默认是 passive 的
-        // 这里直接绑定在元素上通常够用，或者用 passive: false
-        $el.on('touchmove', e => {
-            if(isDragging) {
-                // 阻止浏览器默认滚动
-                if(e.cancelable) e.preventDefault();
-                const touch = e.originalEvent.touches[0];
-                move(touch.clientX, touch.clientY);
-            }
-        });
-        $el.on('touchend', () => { if(isDragging) end(); });
-    }
-
     // === 修改后的 initUI ===
     function initUI() {
         if ($('#tts-manager-btn').length === 0) {
             $('body').append(`<div id="tts-manager-btn">🔊 TTS配置</div>`);
 
             // 使用新的拖拽绑定，传入原来的点击回调 showDashboard
-            makeDraggable($('#tts-manager-btn'), showDashboard);
+            TTS_Utils.makeDraggable($('#tts-manager-btn'), showDashboard);
         }
     }
 
@@ -757,24 +660,19 @@
     });
 
     // ===========================================
-    // 最终修复版：事件代理 + 跨域通讯 + 状态同步
-    // ===========================================
-
-    // 定义正则（删除之前的重复定义，只保留这一次）
-    const VOICE_TAG_REGEX = /(\s*)\[TTSVoice[:：]\s*([^:：]+)\s*[:：]\s*([^:：]*)\s*[:：]\s*(.*?)\]/gi;
-
-    // ===========================================
     // 最终完整版：新UI容器 + 旧版波动条 + 双端统一样式
     // ===========================================
     function processMessageContent() {
         // 1. 总开关拦截
         if (CACHE.settings.enabled === false) return;
 
-        // 定义旧版波动条的 HTML 结构 (三个 span)
+        // 定义旧版波动条的 HTML 结构
         const BARS_HTML = `<span class='sovits-voice-waves'><span class='sovits-voice-bar'></span><span class='sovits-voice-bar'></span><span class='sovits-voice-bar'></span></span>`;
 
         // 2. 获取当前模式
         const isIframeMode = CACHE.settings.iframe_mode === true;
+        // 【修正】获取 CSS 内容
+        const currentCSS = TTS_Utils.getStyleContent();
 
         if (isIframeMode) {
             // ========================================
@@ -787,12 +685,12 @@
                     const head = doc.find('head');
                     const body = doc.find('body');
 
-                    // 必须确保 GLOBAL_STYLE_CONTENT 有值才执行注入，否则会注入 undefined 或空标签
-                    if (GLOBAL_STYLE_CONTENT && head.length > 0 && head.find('#sovits-iframe-style').length === 0) {
-                        head.append(`<style id='sovits-iframe-style'>${GLOBAL_STYLE_CONTENT}</style>`);
+                    // 【修正】这里原来的 GLOBAL_STYLE_CONTENT 改为了 currentCSS
+                    if (currentCSS && head.length > 0 && head.find('#sovits-iframe-style').length === 0) {
+                        head.append(`<style id='sovits-iframe-style'>${currentCSS}</style>`);
                     }
 
-                    // [B] 绑定事件
+                    // [B] 绑定事件 (保持不变)
                     if (!body.data('tts-event-bound')) {
                         body.on('click', '.voice-bubble', function(e) {
                             e.stopPropagation();
@@ -809,26 +707,27 @@
                         body.data('tts-event-bound', true);
                     }
 
+                    // (查找目标的逻辑保持不变...)
                     const targets = body.find('*').filter(function() {
                         if (['SCRIPT', 'STYLE', 'TEXTAREA', 'INPUT'].includes(this.tagName)) return false;
                         if ($(this).find('.voice-bubble').length > 0) return false;
 
                         let hasTargetText = false;
                         $(this).contents().each(function() {
-                            // nodeType 3 代表文本节点
                             if (this.nodeType === 3 && this.nodeValue && this.nodeValue.indexOf("[TTSVoice") !== -1) {
                                 hasTargetText = true;
-                                return false; // 找到就停止遍历子节点
+                                return false;
                             }
                         });
                         return hasTargetText;
                     });
+
                     targets.each(function() {
                         const $p = $(this);
                         if ($p.html().indexOf("voice-bubble") !== -1) return;
 
-                        if (VOICE_TAG_REGEX.test($p.html())) {
-                            const newHtml = $p.html().replace(VOICE_TAG_REGEX, (match, spaceChars, name, emotion, text) => {
+                        if (TTS_Utils.VOICE_TAG_REGEX.test($p.html())) {
+                            const newHtml = $p.html().replace(TTS_Utils.VOICE_TAG_REGEX, (match, spaceChars, name, emotion, text) => {
                                 const cleanName = name.trim();
                                 const cleanText = text.replace(/<[^>]+>|&lt;[^&]+&gt;/g, '').trim();
                                 const key = BatchScheduler.getTaskKey(cleanName, cleanText);
@@ -848,13 +747,13 @@
                                 const bubbleWidth = Math.min(220, 75 + d * 10);
 
                                 return `${spaceChars}<span class='voice-bubble ${loadingClass}'
-                                    style='width: ${bubbleWidth}px; justify-content: space-between;'
-                                    data-key='${key}'
-                                    data-status='${status}' ${dataUrlAttr} data-text='${cleanText}'
-                                    data-voice-name='${cleanName}' data-voice-emotion='${emotion.trim()}'>
-                                    ${BARS_HTML}
-                                    <span class='sovits-voice-duration'>${d}"</span>
-                                </span>`;
+                                style='width: ${bubbleWidth}px; justify-content: space-between;'
+                                data-key='${key}'
+                                data-status='${status}' ${dataUrlAttr} data-text='${cleanText}'
+                                data-voice-name='${cleanName}' data-voice-emotion='${emotion.trim()}'>
+                                ${BARS_HTML}
+                                <span class='sovits-voice-duration'>${d}"</span>
+                            </span>`;
                             });
                             $p.html(newHtml);
                             if (CACHE.settings.auto_generate) setTimeout(() => BatchScheduler.scanAndSchedule(), 100);
@@ -868,20 +767,21 @@
             // 模式 B: 普通卡 (mes_text)
             // ========================================
 
-            // 【修改】使用全局 CSS 变量补全主界面样式 (防止 injectStyles 漏网)
-            if (GLOBAL_STYLE_CONTENT && $('#sovits-iframe-style-main').length === 0) {
-                $('head').append(`<style id='sovits-iframe-style-main'>${GLOBAL_STYLE_CONTENT}</style>`);
+            // 【修正】这里原来的 GLOBAL_STYLE_CONTENT 改为了 currentCSS
+            if (currentCSS && $('#sovits-iframe-style-main').length === 0) {
+                $('head').append(`<style id='sovits-iframe-style-main'>${currentCSS}</style>`);
             }
 
             $('.mes_text').each(function() {
+                // (普通卡的替换逻辑保持不变...)
                 const $this = $(this);
                 if ($this.find('iframe').length > 0) return;
                 if ($this.attr('data-voice-processed') === 'true' || $this.find('.voice-bubble').length > 0) return;
 
                 const html = $this.html();
-                if (VOICE_TAG_REGEX.test(html)) {
-                    VOICE_TAG_REGEX.lastIndex = 0;
-                    const newHtml = html.replace(VOICE_TAG_REGEX, (match, spaceChars, name, emotion, text) => {
+                if (TTS_Utils.VOICE_TAG_REGEX.test(html)) {
+                    TTS_Utils.VOICE_TAG_REGEX.lastIndex = 0;
+                    const newHtml = html.replace(TTS_Utils.VOICE_TAG_REGEX, (match, spaceChars, name, emotion, text) => {
                         const cleanName = name.trim();
                         const cleanText = text.replace(/<[^>]+>|&lt;[^&]+&gt;/g, '').trim();
                         const key = BatchScheduler.getTaskKey(cleanName, cleanText);
@@ -901,12 +801,12 @@
                         const bubbleWidth = Math.min(220, 60 + d * 10);
 
                         return `${spaceChars}<span class="voice-bubble ${loadingClass}"
-                            style="width: ${bubbleWidth}px"
-                            data-status="${status}" ${dataUrlAttr} data-text="${cleanText}"
-                            data-voice-name="${cleanName}" data-voice-emotion="${emotion.trim()}">
-                            ${BARS_HTML}
-                            <span class="sovits-voice-duration">${d}"</span>
-                        </span>`;
+                        style="width: ${bubbleWidth}px"
+                        data-status="${status}" ${dataUrlAttr} data-text="${cleanText}"
+                        data-voice-name="${cleanName}" data-voice-emotion="${emotion.trim()}">
+                        ${BARS_HTML}
+                        <span class="sovits-voice-duration">${d}"</span>
+                    </span>`;
                     });
 
                     $this.html(newHtml);
@@ -1037,4 +937,5 @@
     if (chatContainer) observer.observe(chatContainer, { childList: true, subtree: true });
     refreshData();
     window.refreshTTS = refreshData;
+    }
 })();
