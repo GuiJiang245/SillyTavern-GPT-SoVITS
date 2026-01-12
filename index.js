@@ -25,22 +25,23 @@
     const uiURL = `${MANAGER_API}/static/js/ui.js`;
     const stateURL = `${MANAGER_API}/static/js/state.js`;
     const schedulerURL = `${MANAGER_API}/static/js/scheduler.js`;
-    // 链式加载： Utils -> API -> State -> 【Scheduler】 -> UI -> Init
+    const parserURL = `${MANAGER_API}/static/js/dom_parser.js`;
+    // 链式加载
     $.getScript(utilsURL).done(function() {
         $.getScript(apiURL).done(function() {
             $.getScript(stateURL).done(function() {
-                // 【新增】加载 Scheduler
-                $.getScript(schedulerURL).done(function() {
-                    $.getScript(uiURL).done(function() {
-                        console.log("✅ [Loader] 所有模块加载完毕");
-                        initPlugin();
+                // 【新增】加载 Parser
+                $.getScript(parserURL).done(function() {
+                    $.getScript(schedulerURL).done(function() {
+                        $.getScript(uiURL).done(function() {
+                            console.log("✅ [Loader] 所有模块加载完毕");
+                            initPlugin();
+                        });
                     });
                 });
             });
         });
-    }).fail(function() {
-        console.error("❌ 核心模块加载失败");
-    });
+    }).fail(function() { console.error("❌ 核心模块加载失败"); });
 
     // ================================================
     // 将原本 index.js 的剩余所有逻辑包裹进这个主函数
@@ -49,12 +50,13 @@
         window.TTS_API.init(MANAGER_API);
         // 【新增】初始化 State (虽然目前里面只是打印个日志)
         window.TTS_State.init();
+        window.TTS_Parser.init();
         const TTS_Utils = window.TTS_Utils;
 
         // 【修改】使用 Utils 加载 CSS
         TTS_Utils.loadGlobalCSS(`${MANAGER_API}/static/css/style.css`, (cssContent) => {
             // 回调：CSS加载完毕后，手动触发一次 Iframe 扫描，解决穿透时序问题
-            processMessageContent();
+            window.TTS_Parser.scan();
 
             // 双重保险：强制遍历现有 iframe 注入
             $('iframe').each(function() {
@@ -131,7 +133,7 @@
         async function toggleMasterSwitch(checked) {
             CACHE.settings.enabled = checked;
             // 如果开启，立即扫描一次页面
-            if (checked) processMessageContent();
+            if (checked) window.TTS_Parser.scan();
 
             try {
                 await window.TTS_API.updateSettings({ enabled: checked });
@@ -211,170 +213,7 @@
             }
         });
 
-        // ===========================================
-        // 最终完整版：新UI容器 + 旧版波动条 + 双端统一样式
-        // ===========================================
-        function processMessageContent() {
-            // 1. 总开关拦截
-            if (CACHE.settings.enabled === false) return;
 
-            // 定义旧版波动条的 HTML 结构
-            const BARS_HTML = `<span class='sovits-voice-waves'><span class='sovits-voice-bar'></span><span class='sovits-voice-bar'></span><span class='sovits-voice-bar'></span></span>`;
-
-            // 2. 获取当前模式
-            const isIframeMode = CACHE.settings.iframe_mode === true;
-            // 【修正】获取 CSS 内容
-            const currentCSS = TTS_Utils.getStyleContent();
-
-            if (isIframeMode) {
-                // ========================================
-                // 模式 A: 美化卡 (Iframe)
-                // ========================================
-                $('iframe').each(function() {
-                    try {
-                        const $iframe = $(this);
-                        const doc = $iframe.contents();
-                        const head = doc.find('head');
-                        const body = doc.find('body');
-
-                        // 【修正】这里原来的 GLOBAL_STYLE_CONTENT 改为了 currentCSS
-                        if (currentCSS && head.length > 0 && head.find('#sovits-iframe-style').length === 0) {
-                            head.append(`<style id='sovits-iframe-style'>${currentCSS}</style>`);
-                        }
-
-                        // [B] 绑定事件 (保持不变)
-                        if (!body.data('tts-event-bound')) {
-                            body.on('click', '.voice-bubble', function(e) {
-                                e.stopPropagation();
-                                const $this = $(this);
-                                const payload = {
-                                    type: 'play_tts',
-                                    key: $this.attr('data-key'),
-                                    text: $this.attr('data-text'),
-                                    charName: $this.attr('data-voice-name'),
-                                    emotion: $this.attr('data-voice-emotion')
-                                };
-                                window.top.postMessage(payload, '*');
-                            });
-                            body.data('tts-event-bound', true);
-                        }
-
-                        // (查找目标的逻辑保持不变...)
-                        const targets = body.find('*').filter(function() {
-                            if (['SCRIPT', 'STYLE', 'TEXTAREA', 'INPUT'].includes(this.tagName)) return false;
-                            if ($(this).find('.voice-bubble').length > 0) return false;
-
-                            let hasTargetText = false;
-                            $(this).contents().each(function() {
-                                if (this.nodeType === 3 && this.nodeValue && this.nodeValue.indexOf("[TTSVoice") !== -1) {
-                                    hasTargetText = true;
-                                    return false;
-                                }
-                            });
-                            return hasTargetText;
-                        });
-
-                        targets.each(function() {
-                            const $p = $(this);
-                            if ($p.html().indexOf("voice-bubble") !== -1) return;
-
-                            if (TTS_Utils.VOICE_TAG_REGEX.test($p.html())) {
-                                const newHtml = $p.html().replace(TTS_Utils.VOICE_TAG_REGEX, (match, spaceChars, name, emotion, text) => {
-                                    const cleanName = name.trim();
-                                    const cleanText = text.replace(/<[^>]+>|&lt;[^&]+&gt;/g, '').trim();
-                                    const key = BatchScheduler.getTaskKey(cleanName, cleanText);
-
-                                    let status = 'waiting';
-                                    let dataUrlAttr = '';
-                                    let loadingClass = '';
-                                    if (CACHE.audioMemory[key]) {
-                                        status = 'ready';
-                                        dataUrlAttr = `data-audio-url='${CACHE.audioMemory[key]}'`;
-                                    } else if (CACHE.pendingTasks.has(key)) {
-                                        status = 'queued';
-                                        loadingClass = 'loading';
-                                    }
-
-                                    const d = Math.max(1, Math.ceil(cleanText.length * 0.25));
-                                    const bubbleWidth = Math.min(220, 75 + d * 10);
-
-                                    return `${spaceChars}<span class='voice-bubble ${loadingClass}'
-                                    style='width: ${bubbleWidth}px; justify-content: space-between;'
-                                    data-key='${key}'
-                                    data-status='${status}' ${dataUrlAttr} data-text='${cleanText}'
-                                    data-voice-name='${cleanName}' data-voice-emotion='${emotion.trim()}'>
-                                    ${BARS_HTML}
-                                    <span class='sovits-voice-duration'>${d}"</span>
-                                </span>`;
-                                });
-                                $p.html(newHtml);
-                                if (CACHE.settings.auto_generate) setTimeout(() => BatchScheduler.scanAndSchedule(), 100);
-                            }
-                        });
-                    } catch (e) { }
-                });
-
-            } else {
-                // ========================================
-                // 模式 B: 普通卡 (mes_text)
-                // ========================================
-
-                // 【修正】这里原来的 GLOBAL_STYLE_CONTENT 改为了 currentCSS
-                if (currentCSS && $('#sovits-iframe-style-main').length === 0) {
-                    $('head').append(`<style id='sovits-iframe-style-main'>${currentCSS}</style>`);
-                }
-
-                $('.mes_text').each(function() {
-                    // (普通卡的替换逻辑保持不变...)
-                    const $this = $(this);
-                    if ($this.find('iframe').length > 0) return;
-                    if ($this.attr('data-voice-processed') === 'true' || $this.find('.voice-bubble').length > 0) return;
-
-                    const html = $this.html();
-                    if (TTS_Utils.VOICE_TAG_REGEX.test(html)) {
-                        TTS_Utils.VOICE_TAG_REGEX.lastIndex = 0;
-                        const newHtml = html.replace(TTS_Utils.VOICE_TAG_REGEX, (match, spaceChars, name, emotion, text) => {
-                            const cleanName = name.trim();
-                            const cleanText = text.replace(/<[^>]+>|&lt;[^&]+&gt;/g, '').trim();
-                            const key = BatchScheduler.getTaskKey(cleanName, cleanText);
-
-                            let status = 'waiting';
-                            let dataUrlAttr = '';
-                            let loadingClass = '';
-                            if (CACHE.audioMemory[key]) {
-                                status = 'ready';
-                                dataUrlAttr = `data-audio-url='${CACHE.audioMemory[key]}'`;
-                            } else if (CACHE.pendingTasks.has(key)) {
-                                status = 'queued';
-                                loadingClass = 'loading';
-                            }
-
-                            const d = Math.max(1, Math.ceil(cleanText.length * 0.25));
-                            const bubbleWidth = Math.min(220, 60 + d * 10);
-
-                            return `${spaceChars}<span class="voice-bubble ${loadingClass}"
-                            style="width: ${bubbleWidth}px"
-                            data-status="${status}" ${dataUrlAttr} data-text="${cleanText}"
-                            data-voice-name="${cleanName}" data-voice-emotion="${emotion.trim()}">
-                            ${BARS_HTML}
-                            <span class="sovits-voice-duration">${d}"</span>
-                        </span>`;
-                        });
-
-                        $this.html(newHtml);
-                        $this.attr('data-voice-processed', 'true');
-                        if (CACHE.settings.auto_generate) setTimeout(() => BatchScheduler.scanAndSchedule(), 100);
-                    }
-                });
-            }
-        }
-
-        // ===========================================
-        // 核心监听器：处理播放 + 跨窗口生成 (最终修复版)
-        // ===========================================
-        // ===========================================
-        // 核心监听器：处理播放 + 跨窗口生成 (修复动画重置版)
-        // ===========================================
         window.addEventListener('message', function(event) {
             // 1. 安全校验
             if (!event.data || event.data.type !== 'play_tts') return;
@@ -507,7 +346,7 @@
 
             // 3. 只有在开启状态下，才去扫描消息气泡
             if (CACHE.settings.enabled) {
-                processMessageContent();
+                window.TTS_Parser.scan();
             }
         }
 
@@ -534,7 +373,7 @@
                 }
             }
             if (shouldScan && CACHE.settings.enabled) {
-                processMessageContent();
+                window.TTS_Parser.scan();
             }
         });
 
