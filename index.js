@@ -722,19 +722,78 @@
         });
 
 
+        // ===========================================
+        // 【新增】心跳保活机制 (彻底解决刷新丢失问题)
+        // ===========================================
+        function runWatchdog() {
+            // 1. 检查 TTS 设置按钮是否被酒馆移除 (应对页面重绘)
+            // 只有当 UI 模块加载了，且页面上找不到按钮时，才重新注入
+            if (window.TTS_UI && $('#tts-manager-btn').length === 0) {
+                // console.log("♻️ [TTS] 监测到 UI 丢失，正在重新挂载...");
+                window.TTS_UI.init({
+                    CACHE: CACHE,
+                    API_URL: MANAGER_API,
+                    Utils: TTS_Utils,
+                    Callbacks: {
+                        refreshData: refreshData,
+                        saveSettings: saveSettings,
+                        toggleMasterSwitch: toggleMasterSwitch,
+                        toggleAutoGenerate: toggleAutoGenerate
+                    }
+                });
+            }
 
-        // 初始运行
-        setTimeout(processMessageContent, 5000);
+            // 2. 检查 CSS 是否丢失 (应对 Iframe 重新加载)
+            // 只有当 Utils 准备好，且页面上找不到样式标签时，才重新注入
+            if (TTS_Utils && TTS_Utils.getStyleContent) {
+                const currentCSS = TTS_Utils.getStyleContent();
+                // 检查主页面
+                if ($('#sovits-iframe-style-main').length === 0 && currentCSS) {
+                    $('head').append(`<style id='sovits-iframe-style-main'>${currentCSS}</style>`);
+                }
+            }
 
-
-        setInterval(processMessageContent, 1000);
-        if (typeof refreshData !== 'undefined') {
-            window.refreshTTS = refreshData;
+            // 3. 只有在开启状态下，才去扫描消息气泡
+            if (CACHE.settings.enabled) {
+                processMessageContent();
+            }
         }
-        const observer = new MutationObserver(() => processMessageContent());
-        const chatContainer = document.querySelector('#chat') || document.body;
-        if (chatContainer) observer.observe(chatContainer, { childList: true, subtree: true });
+
+        // ===========================================
+        // 启动逻辑
+        // ===========================================
+
+        // 1. 首次加载数据
         refreshData();
+
+        // 2. 启动心跳循环 (每 1.5 秒检查一次 UI 和 气泡)
+        // 1500ms 是一个既不影响性能又能及时响应 UI 变化的平衡点
+        setInterval(runWatchdog, 1500);
+
+        // 3. 注册 DOM 监听器 (作为心跳的辅助，响应即时变化)
+        // 使用 body 作为观察目标，因为 #chat 可能在启动时还不存在
+        const observer = new MutationObserver((mutations) => {
+            let shouldScan = false;
+            // 简单的防抖逻辑：只有当有节点被添加时才触发扫描
+            for (const mutation of mutations) {
+                if (mutation.addedNodes.length > 0) {
+                    shouldScan = true;
+                    break;
+                }
+            }
+            if (shouldScan && CACHE.settings.enabled) {
+                processMessageContent();
+            }
+        });
+
+        // 监听整个 body 的子树变化
+        observer.observe(document.body, { childList: true, subtree: true });
+
+        // 4. 暴露全局刷新方法 (方便调试)
         window.refreshTTS = refreshData;
+
+        // 5. 立即执行一次看门狗，确保刚加载时 UI 正常
+        setTimeout(runWatchdog, 500);
+
     }
 })();
