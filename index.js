@@ -16,7 +16,7 @@
     // ================= 2. 模块加载器 =================
     const loadModule = (name) => {
         return new Promise((resolve, reject) => {
-            const url = `${MANAGER_API}/static/js/${name}.js`;
+            const url = `${MANAGER_API}/static/js/${name}.js?t=${new Date().getTime()}`;
             $.getScript(url)
                 .done(() => {
                 resolve();
@@ -45,7 +45,7 @@
         const Scheduler = window.TTS_Scheduler;
 
         // 3. 加载全局 CSS
-        TTS_Utils.loadGlobalCSS(`${MANAGER_API}/static/css/style.css`, (cssContent) => {
+        TTS_Utils.loadGlobalCSS(`${MANAGER_API}/static/css/style.css?t=${new Date().getTime()}`, (cssContent) => {
             // CSS加载完毕后，手动扫描一次
             if (window.TTS_Parser) window.TTS_Parser.scan();
 

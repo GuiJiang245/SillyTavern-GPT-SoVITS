@@ -57,8 +57,6 @@
 
             audio.play();
         },
-
-        // --- 点击事件 ---
         bindClickEvents() {
             $(document).on('click', '.voice-bubble', (e) => {
                 const $btn = $(e.currentTarget); // 使用 currentTarget 确保点到的是按钮本身
@@ -66,7 +64,7 @@
                 const CACHE = window.TTS_State.CACHE;
                 const Scheduler = window.TTS_Scheduler;
 
-                // 状态 A: 已生成，直接播放
+                // 状态 A: 已生成 (Ready)
                 if ($btn.attr('data-status') === 'ready') {
                     const audioUrl = $btn.attr('data-audio-url') || $btn.data('audio-url');
 
@@ -76,9 +74,29 @@
                         return;
                     }
 
+                    // === 新增逻辑：如果当前正在播放，则停止 (Toggle Stop) ===
+                    if ($btn.hasClass('playing')) {
+                        // 1. 停止音频
+                        if (currentAudio) {
+                            currentAudio.pause();
+                            currentAudio = null;
+                        }
+                        // 2. 清除主界面动画
+                        $('.voice-bubble').removeClass('playing');
+                        // 3. 清除 Iframe 内动画 (防止跨域报错用 try-catch)
+                        $('iframe').each(function() {
+                            try { $(this).contents().find('.voice-bubble').removeClass('playing'); } catch(e){}
+                        });
+                        return; // 直接结束，不执行后续播放逻辑
+                    }
+                    // ========================================================
+
                     // 获取 key (如果没有 data-key，尝试用 Scheduler 生成一个，兼容旧版)
                     const key = $btn.data('key') || Scheduler.getTaskKey(charName, $btn.data('text'));
+
+                    // 【重要修复】强制将 key 写入 DOM，确保 playAudio 能通过属性选择器找到它
                     $btn.attr('data-key', key);
+
                     this.playAudio(key, audioUrl);
                 }
                 // 状态 B: 未生成或失败，尝试生成
