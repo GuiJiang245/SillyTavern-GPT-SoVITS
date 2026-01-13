@@ -29,6 +29,9 @@
             const isIframeMode = CACHE.settings.iframe_mode === true;
             const currentCSS = TTS_Utils.getStyleContent();
 
+            // ✨ 获取当前激活的风格 (优先从设置读，没有就读本地缓存)
+            const activeStyle = CACHE.settings.bubble_style || localStorage.getItem('tts_bubble_style') || 'default';
+
             if (isIframeMode) {
                 $('iframe').each(function() {
                     try {
@@ -37,9 +40,17 @@
                         const head = doc.find('head');
                         const body = doc.find('body');
 
+                        // 1. 注入 CSS (如果还没有的话)
                         if (currentCSS && head.length > 0 && head.find('#sovits-iframe-style').length === 0) {
                             head.append(`<style id='sovits-iframe-style'>${currentCSS}</style>`);
                         }
+
+                        // ✨✨✨【核心修复】✨✨✨
+                        // 强制同步 Iframe 内部 body 的风格属性，让 CSS 选择器生效！
+                        if (body.attr('data-bubble-style') !== activeStyle) {
+                            body.attr('data-bubble-style', activeStyle);
+                        }
+                        // ✨✨✨✨✨✨✨✨✨✨✨
 
                         if (!body.data('tts-event-bound')) {
                             body.on('click', '.voice-bubble', function(e) {
@@ -88,9 +99,12 @@
                                         loadingClass = 'loading';
                                     }
                                     const d = Math.max(1, Math.ceil(cleanText.length * 0.25));
-                                    const bubbleWidth = Math.min(220, 75 + d * 10);
+                                    // 稍微调整一下宽度计算，防止过长
+                                    const bubbleWidth = Math.min(220, 60 + d * 10);
+
+                                    // 注意：这里去掉了内联的 justify-content，交给 CSS 里的 flex 控制，避免冲突
                                     return `${spaceChars}<span class='voice-bubble ${loadingClass}'
-                                    style='width: ${bubbleWidth}px; justify-content: space-between;'
+                                    style='width: ${bubbleWidth}px;'
                                     data-key='${key}'
                                     data-status='${status}' ${dataUrlAttr} data-text='${cleanText}'
                                     data-voice-name='${cleanName}' data-voice-emotion='${emotion.trim()}'>
@@ -109,6 +123,12 @@
                 if (currentCSS && $('#sovits-iframe-style-main').length === 0) {
                     $('head').append(`<style id='sovits-iframe-style-main'>${currentCSS}</style>`);
                 }
+
+                // ✨ 普通模式也要确保同步 (虽然通常 index.js 已经做了，但多加一道保险没错)
+                if (document.body.getAttribute('data-bubble-style') !== activeStyle) {
+                    document.body.setAttribute('data-bubble-style', activeStyle);
+                }
+
                 $('.mes_text').each(function() {
                     const $this = $(this);
                     if ($this.find('iframe').length > 0) return;

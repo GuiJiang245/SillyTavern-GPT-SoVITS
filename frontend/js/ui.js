@@ -107,6 +107,7 @@ window.TTS_UI = window.TTS_UI || {};
                                     <div class="option-item" data-value="default">🌿 森野·极简</div>
                                     <div class="option-item" data-value="classic">📼 旧日·回溯</div>
                                     <div class="option-item" data-value="kawaii">💎 幻彩·琉璃</div>
+                                    <div class="option-item" data-value="bloom">🌸 花信·初绽</div>
                                 </div>
                             </div>
                             <input type="hidden" id="style-selector" value="default">
