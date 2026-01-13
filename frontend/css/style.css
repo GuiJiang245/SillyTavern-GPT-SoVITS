@@ -231,58 +231,6 @@ body[data-bubble-style="kawaii"] .voice-bubble.error {
     display: flex; align-items: center; gap: 8px; width: 90%; justify-content: center;
 }
 #tts-notification-bar.show { top: 20px; }
-/* 面板主体 */
-.tts-overlay {
-    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0, 0, 0, 0.6); z-index: 20001;
-    display: flex;
-}
-.tts-panel {
-    background: #2b2b2b; color: #eee;
-    margin: auto; width: 95%; max-width: 500px; max-height: 75vh;
-    border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.5);
-    display: flex; flex-direction: column; overflow: hidden;
-    border: 1px solid #444; font-family: sans-serif;
-}
-.tts-header {
-    padding: 12px 15px; background: #222; border-bottom: 1px solid #444;
-    display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;
-}
-.tts-header h3 { margin: 0; font-size: 16px; }
-.tts-close {
-    background: none; border: none; color: #aaa; font-size: 24px;
-    cursor: pointer; line-height: 1; padding: 0 5px;
-}
-.tts-content {
-    padding: 15px; flex: 1; overflow-y: auto; min-height: 0;
-    -webkit-overflow-scrolling: touch;
-}
-.tts-settings-zone input[type="text"] {
-    background: #1a1a1a; border: 1px solid #444; color: #fff;
-    padding: 4px; border-radius: 3px; margin-top: 2px;
-}
-.tts-add-zone, .tts-list-zone { margin-top: 15px; }
-
-.tts-row, .tts-sub-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; flex-wrap: wrap; }
-
-.tts-row input, .tts-row select {
-    flex: 1; background: #333; color: white; border: 1px solid #555; padding: 8px 5px;
-    min-width: 100px;
-}
-.tts-list-container {
-    border: 1px solid #444; background: #1f1f1f; max-height: 200px; overflow-y: auto;
-    border-radius: 4px;
-}
-.tts-list-item {
-    display: flex; justify-content: space-between; padding: 8px;
-    border-bottom: 1px solid #333; align-items: center; font-size: 13px;
-}
-.tts-list-item:last-child { border-bottom: none; }
-.col-name { font-weight: bold; color: #81c784; }
-.col-model { color: #aaa; margin-left: 10px; flex: 1; word-break: break-all; }
-.btn-blue { background: #1976d2; color: white; border: none; border-radius: 3px; cursor: pointer; padding: 6px 12px;}
-.btn-red { background: #d32f2f; color: white; border: none; padding: 4px 10px; border-radius: 3px; cursor: pointer; }
-
 /* ========================================= */
 /* 新增：自定义下拉菜单 (Custom Dropdown) */
 /* ========================================= */
@@ -403,4 +351,263 @@ body[data-bubble-style="kawaii"] .voice-bubble.error {
     background: linear-gradient(90deg, #b39ddb 0%, #f48fb1 100%);
     color: white;
     text-shadow: 0 1px 1px rgba(0,0,0,0.1);
+}
+
+/* ========================================= */
+/* 🎨 UI 重构：现代面板 (Modern Dashboard) */
+/* ========================================= */
+.tts-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+
+    /* 背景变暗 + 毛玻璃模糊效果 */
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+
+    z-index: 20001;
+
+    /* Flex 布局确保面板绝对居中 */
+    display: flex;
+    align-items: center;    /* 垂直居中 */
+    justify-content: center;/* 水平居中 */
+
+    /* 简单的淡入动画 (可选) */
+    animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+/* 面板主体优化 */
+.tts-panel {
+    background: #1e1e24;
+    color: #e0e0e0;
+
+    /* 核心修复：限制尺寸 */
+    width: 90%;             /* 手机上占90%宽 */
+    max-width: 450px;       /* 电脑上最大这么宽，不会变成巨无霸 */
+    max-height: 80vh;       /* 核心！高度最多占屏幕的80%，留出上下空间 */
+
+    /* 布局修复：确保头部固定，内容滚动 */
+    display: flex;
+    flex-direction: column;
+
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+
+    /* 确保在 Overlay 中居中 */
+    margin: auto;
+    position: relative;
+}
+
+/* 头部美化 */
+.tts-header {
+    background: linear-gradient(90deg, #2b2d42 0%, #1e1e24 100%);
+    padding: 16px 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+
+    /* ✅ 修复核心：Flex布局，两端对齐 */
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.tts-header h3 {
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    background: linear-gradient(45deg, #fff, #a5a5a5);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+.tts-close {
+    color: #fff;
+    opacity: 0.6;
+    transition: opacity 0.2s;
+    font-size: 28px;
+    font-weight: 300;
+}
+.tts-close:hover { opacity: 1; }
+
+/* 内容区域 */
+.tts-content {
+    background: #18181b;
+    padding: 20px;
+
+    /* 核心修复：让内容区域自动填充剩余空间并滚动 */
+    flex: 1;              /* 占据 Header 剩下的所有高度 */
+    overflow-y: auto;     /* 内容超长时，面板不动，内部出现滚动条 */
+    min-height: 0;        /* 防止 Flex 子元素溢出 */
+
+    /* 优化滚动条体验 (可选) */
+    -webkit-overflow-scrolling: touch;
+}
+
+/* --- 卡片式分组 (Group Card) --- */
+.tts-card {
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.tts-card-title {
+    font-size: 13px;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 12px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* --- iOS 风格开关 (Toggle Switch) --- */
+/* 隐藏原生 checkbox */
+.tts-switch-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    cursor: pointer;
+}
+.tts-switch-label {
+    font-size: 14px;
+    color: #dcdcdc;
+}
+.tts-toggle {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 44px;
+    height: 24px;
+    background: #3f3f46;
+    border-radius: 20px;
+    position: relative;
+    cursor: pointer;
+    transition: background 0.3s;
+    outline: none;
+}
+.tts-toggle::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 20px;
+    height: 20px;
+    background: white;
+    border-radius: 50%;
+    transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+/* 选中状态 */
+.tts-toggle:checked {
+    background: #10b981; /* 漂亮的翡翠绿 */
+}
+.tts-toggle:checked::after {
+    transform: translateX(20px);
+}
+
+/* --- 输入框美化 (Modern Input) --- */
+.tts-input-row {
+    margin-top: 10px;
+}
+.tts-input-label {
+    display: block;
+    font-size: 12px;
+    color: #a1a1aa;
+    margin-bottom: 6px;
+}
+.tts-modern-input {
+    width: 100%;
+    background: #27272a;
+    border: 1px solid #3f3f46;
+    color: #eee;
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    transition: all 0.2s;
+    box-sizing: border-box; /* 防止padding撑破宽度 */
+}
+.tts-modern-input:focus {
+    border-color: #10b981;
+    background: #202023;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+}
+
+/* --- 按钮美化 --- */
+.btn-primary {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.1s, filter 0.2s;
+}
+.btn-primary:active { transform: scale(0.96); }
+.btn-primary:hover { filter: brightness(1.1); }
+
+.btn-icon {
+    display: flex; align-items: center; justify-content: center;
+    background: #3f3f46; color: #fff;
+    border: none; border-radius: 6px;
+    padding: 8px; cursor: pointer;
+}
+
+/* 列表项微调 */
+.tts-list-item {
+    background: rgba(255,255,255,0.02);
+    margin-bottom: 6px;
+    border-radius: 8px;
+    padding: 10px 12px;
+    border: 1px solid rgba(255,255,255,0.02);
+
+    /* ✅ 修复核心：横向排列，垂直居中 */
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+/* 列表内文字截断（防止名字太长换行） */
+.col-info {
+    flex: 1; /* 占据剩余空间 */
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    font-size: 13px;
+    color: #ccc;
+}
+.col-model-name {
+    color: #10b981; /* 绿色高亮模型名 */
+    font-family: monospace;
+}
+
+/* --- 红色解绑按钮 --- */
+.btn-red {
+    background: rgba(239, 68, 68, 0.15); /* 淡淡的红背景 */
+    color: #fca5a5;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s;
+}
+.btn-red:hover {
+    background: rgba(239, 68, 68, 0.8);
+    color: white;
 }
