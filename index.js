@@ -8,7 +8,21 @@
         apiHost = remoteConfig.ip;
     } else {
         const current = window.location.hostname;
-        apiHost = (current === 'localhost' || current === '127.0.0.1') ? '127.0.0.1' : current;
+        // 正则匹配：192.168.x.x / 10.x.x.x / 172.16-31.x.x / IPv6
+        const isLanOrIPv6 = /^192\.168\.|^10\.|^172\.(1[6-9]|2\d|3[0-1])\.|:/.test(current);
+
+        if (current === 'localhost' || current === '127.0.0.1') {
+            apiHost = '127.0.0.1';
+        } else if (isLanOrIPv6) {
+            apiHost = current; // 软路由/局域网环境：直接使用当前 IP
+        } else {
+            apiHost = '127.0.0.1'; // 公网域名/其他环境：安全回退到本地
+        }
+    }
+
+    // IPv6 格式修正
+    if (apiHost.includes(':') && !apiHost.startsWith('[')) {
+        apiHost = `[${apiHost}]`;
     }
 
     const MANAGER_API = `http://${apiHost}:3000`;
