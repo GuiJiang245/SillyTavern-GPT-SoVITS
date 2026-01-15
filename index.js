@@ -89,7 +89,36 @@
                 } catch(e) {}
             });
         });
-        TTS_Utils.loadGlobalCSS(`${MANAGER_API}/static/css/mobile.css?t=${new Date().getTime()}`);
+        // ============================================================
+        // 🚀 强制加载 CSS (修复版)
+        // 使用 fetch 获取文本直接注入，绕过 <link> 标签可能遇到的加载失效问题
+        // ============================================================
+        const mobileCssUrl = `${MANAGER_API}/static/css/mobile.css?t=${new Date().getTime()}`;
+
+        fetch(mobileCssUrl)
+            .then(response => response.text())
+            .then(cssText => {
+            // 1. 创建 style 标签
+            const style = document.createElement('style');
+            style.id = 'tts-mobile-force-style';
+
+            // 2. 可以在这里顺便补一个 z-index 保底，防止被遮挡
+            // 如果原来的 CSS 里 z-index 不够大，这行会救命
+            const extraCss = `
+                    #tts-mobile-trigger { z-index: 2147483647 !important; }
+                    #tts-mobile-root { z-index: 2147483647 !important; }
+                `;
+
+            // 3. 填入内容
+            style.textContent = cssText + extraCss;
+
+            // 4. 插入页面头部
+            document.head.appendChild(style);
+            console.log("✅ [TTS] 手机端 CSS 已强制注入成功！");
+        })
+            .catch(err => {
+            console.error("❌ [TTS] 手机端 CSS 加载失败:", err);
+        });
 
         // 4. 定义核心回调函数 (传给 UI 模块使用)
         async function refreshData() {
