@@ -96,3 +96,34 @@ def tts_proxy(text: str, text_lang: str, ref_audio_path: str, prompt_text: str, 
     except Exception as e:
         print(f"General TTS Error: {e}")
         raise HTTPException(status_code=500, detail="TTS Server Internal Error")
+
+# [添加到 routers/tts.py 末尾]
+
+@router.get("/delete_cache")
+def delete_cache(
+        text: str,
+        text_lang: str,
+        ref_audio_path: str,
+        prompt_text: str,
+        prompt_lang: str
+):
+    """
+    接收和 tts_proxy 一模一样的参数，
+    计算出同样的 Hash 文件名，然后物理删除它。
+    """
+    _, cache_dir = get_current_dirs()
+
+    # 1. 复用完全相同的 Hash 算法
+    raw_key = f"{text}_{ref_audio_path}_{prompt_text}_{text_lang}_{prompt_lang}"
+    file_hash = hashlib.md5(raw_key.encode('utf-8')).hexdigest()
+    cache_file_path = os.path.join(cache_dir, f"{file_hash}.wav")
+
+    # 2. 物理删除
+    if os.path.exists(cache_file_path):
+        try:
+            os.remove(cache_file_path)
+            return {"status": "success", "msg": "Cache deleted"}
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Delete failed: {str(e)}")
+    else:
+        return {"status": "not_found", "msg": "File does not exist"}

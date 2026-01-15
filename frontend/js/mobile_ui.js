@@ -111,8 +111,81 @@ window.TTS_Mobile = window.TTS_Mobile || {};
             name: '收藏夹',
             icon: '❤️',
             bg: '#e11d48',
-            render: (container) => {
-                container.innerHTML = `<div style="padding:20px; text-align:center; margin-top:50%">功能开发中...<br>这里将显示收藏的语音</div>`;
+            render: async (container) => {
+                container.html('<div style="padding:20px; text-align:center;">正在获取云端收藏...</div>');
+
+                try {
+                    // 1. 从后端获取数据
+                    const res = await window.TTS_API.getFavorites();
+                    const list = res.favorites || [];
+
+                    if (list.length === 0) {
+                        container.html('<div style="padding:20px; text-align:center; color:#888;">暂无收藏<br>请在对话气泡上右键/长按收藏</div>');
+                        return;
+                    }
+
+                    // 2. 生成列表 HTML
+                    let html = '<div class="fav-list" style="padding:10px;">';
+                    list.forEach(item => {
+                        // 简单的上下文预览 (取最后一条)
+                        let contextHtml = '';
+                        if(item.context && item.context.length) {
+                            contextHtml = `<div style="font-size:12px; color:#666; background:#f0f0f0; padding:4px; border-radius:4px; margin-bottom:4px;">
+                                📝 上下文: ${item.context[item.context.length-1]}
+                            </div>`;
+                        }
+
+                        html += `
+                        <div class="fav-item" data-id="${item.id}" data-url="${item.audio_url}" style="background:#f9f9f9; border:1px solid #eee; border-radius:8px; padding:10px; margin-bottom:10px; box-shadow:0 2px 5px rgba(0,0,0,0.05);">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+                                <strong style="color:#e11d48;">${item.char_name}</strong>
+                                <span style="font-size:12px; color:#999;">${item.created_at.split(' ')[0]}</span>
+                            </div>
+                            ${contextHtml}
+                            <div style="font-size:14px; color:#333; margin-bottom:8px;">“${item.text}”</div>
+
+                            <div style="display:flex; gap:10px;">
+                                <button class="fav-play-btn" style="flex:1; background:#fff; border:1px solid #ccc; padding:5px; border-radius:4px;">▶ 播放</button>
+                                <button class="fav-del-btn" style="width:40px; background:#fee2e2; border:none; color:#dc2626; border-radius:4px;">🗑️</button>
+                            </div>
+                        </div>
+                        `;
+                    });
+                    html += '</div>';
+                    container.html(html);
+
+                    // 3. 绑定内部事件
+                    // A. 播放
+                    container.find('.fav-play-btn').click(function(e) {
+                        e.stopPropagation();
+                        const $item = $(this).closest('.fav-item');
+                        const url = $item.data('url');
+
+                        // 简单的播放逻辑，如果有全局播放器也可以调用全局的
+                        const audio = new Audio(url);
+                        audio.play();
+                    });
+
+                    // B. 删除
+                    container.find('.fav-del-btn').click(async function(e) {
+                        e.stopPropagation();
+                        if(!confirm("确定删除这条收藏吗？")) return;
+
+                        const $item = $(this).closest('.fav-item');
+                        const id = $item.data('id');
+
+                        try {
+                            await window.TTS_API.deleteFavorite(id);
+                            $item.fadeOut(300, function(){ $(this).remove(); });
+                        } catch(err) {
+                            alert("删除失败");
+                        }
+                    });
+
+                } catch (e) {
+                    console.error(e);
+                    container.html('<div style="padding:20px; text-align:center; color:red;">加载失败</div>');
+                }
             }
         },
         'history': {

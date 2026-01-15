@@ -4,9 +4,27 @@ from fastapi import APIRouter
 from config import init_settings, load_json, save_json, get_current_dirs, MAPPINGS_FILE, SETTINGS_FILE
 from utils import scan_audio_files
 from schemas import BindRequest, UnbindRequest, CreateModelRequest, StyleRequest
+import json
+import uuid
+from datetime import datetime
+from pydantic import BaseModel
+from typing import List, Optional, Dict
 
 router = APIRouter()
 
+# 2. 定义数据模型 (方便 FastAPI 解析)
+class FavoriteItem(BaseModel):
+    text: str
+    audio_url: str # 前端传来的相对路径或URL
+    char_name: str
+    context: Optional[List[str]] = [] # 上下文列表
+    tags: Optional[str] = ""
+
+class DeleteFavRequest(BaseModel):
+    id: str
+
+# 定义收藏文件路径
+FAVORITES_FILE = "data/favorites.json"
 @router.get("/get_data")
 def get_data():
     settings = init_settings()
@@ -103,3 +121,39 @@ def save_style(req: StyleRequest):
     save_json(SETTINGS_FILE, settings)
 
     return {"status": "success", "current_style": req.style}
+
+def _load_favs():
+    if not os.path.exists(FAVORITES_FILE):
+        return []
+    return load_json(FAVORITES_FILE)
+
+@router.get("/get_favorites")
+def get_favorites():
+    return {"favorites": _load_favs()}
+
+@router.post("/add_favorite")
+def add_favorite(item: FavoriteItem):
+    favs = _load_favs()
+
+    # 构造完整记录
+    new_entry = item.dict()
+    new_entry["id"] = str(uuid.uuid4()) # 生成唯一ID
+    new_entry["created_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    # 插入到最前面
+    favs.insert(0, new_entry)
+
+    # 确保 data 目录存在并保存
+    os.makedirs("data", exist_ok=True)
+    save_json(FAVORITES_FILE, favs)
+
+    return {"status": "success", "id": new_entry["id"]}
+
+@router.post("/delete_favorite")
+def delete_favorite(req: DeleteFavRequest):
+    favs = _load_favs()
+    # 过滤掉要删除的ID
+    new_favs = [f for f in favs if f["id"] != req.id]
+
+    save_json(FAVORITES_FILE, new_favs)
+    return {"status": "success"}

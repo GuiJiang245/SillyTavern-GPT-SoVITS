@@ -46,6 +46,37 @@
             await fetch(this._url(`/${endpoint}?weights_path=${path}`));
         },
 
+        // === 缓存管理 ===
+        async deleteCache(params) {
+            const queryParams = { ...params };
+            const query = new URLSearchParams(queryParams).toString();
+            // 调用在 tts.py 写的接口
+            const res = await fetch(this._url(`/delete_cache?${query}`));
+            return await res.json();
+        },
+
+        // === 收藏夹管理 ===
+        async getFavorites() {
+            const res = await fetch(this._url('/get_favorites'));
+            return await res.json();
+        },
+
+        async addFavorite(payload) {
+            // payload 格式: { text, audio_url, char_name, context: [...] }
+            await fetch(this._url('/add_favorite'), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+        },
+
+        async deleteFavorite(id) {
+            await fetch(this._url('/delete_favorite'), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: id })
+            });
+        },
         // ===========================================
         // 【新增】管理类 API (原本散落在 ui_legacy.js 里)
         // ===========================================

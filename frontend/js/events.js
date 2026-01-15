@@ -218,75 +218,99 @@
                 }
             });
         },
+
         bindMenuEvents() {
-            // 1. 重绘 (Re-Roll)
-            $(document).on('click', '#tts-action-reroll', () => {
+            // 1. 重绘 (Re-Roll) - 真正的服务端删除
+            $(document).on('click', '#tts-action-reroll', async () => {
                 const $btn = $('#tts-bubble-menu').data('target');
-                $('#tts-bubble-menu').fadeOut(100); // 关菜单
+                $('#tts-bubble-menu').fadeOut(100);
 
                 if (!$btn || !$btn.length) return;
-                if (!confirm("确定要重新生成这段语音吗？")) return;
 
+                // 获取生成参数（这些参数通常保存在按钮的 data 属性里，或者是生成时就需要的数据）
+                // 注意：这里假设你的按钮上或者 TTS_Scheduler 里能找到 ref_audio_path 等参数
+                // 如果按钮上只有 key，我们需要从 Scheduler 的任务队列或缓存的配置里反推，
+                // 但最简单的办法是：在生成成功时，把关键参数（ref_audio, prompt 等）存到 $btn 的 data 属性里。
+
+                // 这里为了演示，假设 Scheduler 生成时已经把参数绑定到了 DOM
+                // 如果没有，你可能需要修改 Scheduler 在生成成功后 $btn.data('params', requestParams)
+                const params = $btn.data('gen-params');
+
+                if (!params) {
+                    alert("无法获取生成参数，无法执行精准删除。\n(请确保 Scheduler 在生成成功后保存了参数)");
+                    // 降级方案：仅重置 UI，不删服务器文件（虽然这样可能还是会读到缓存）
+                    // 建议：修改 ui_main.js/scheduler.js 让其生成成功后 $btn.data('gen-params', 发送给API的数据)
+                }
+
+                if (!confirm("确定要删除服务端缓存并重新生成吗？")) return;
+
+                // A. 调用 API 删除服务端文件
+                try {
+                    if(params) {
+                        await window.TTS_API.deleteCache(params);
+                        console.log("服务器缓存已删除");
+                    }
+                } catch(e) {
+                    console.error("删除缓存失败", e);
+                }
+
+                // B. 清除前端内存缓存
                 const key = $btn.data('key');
                 const CACHE = window.TTS_State.CACHE;
-                const Scheduler = window.TTS_Scheduler;
-
-                // [核心逻辑]
-                // A. 清除缓存
                 if (CACHE.audioMemory[key]) delete CACHE.audioMemory[key];
 
-                // B. 重置按钮状态 (变回 waiting)
+                // C. 重置按钮状态
                 $btn.attr('data-status', 'waiting')
                     .removeClass('ready error playing')
-                    .css('opacity', '0.6'); // 稍微变暗给个反馈
+                    .css('opacity', '0.6');
 
-                // C. 重新加入生成队列
-                Scheduler.addToQueue($btn);
-                Scheduler.run();
+                // D. 重新加入队列
+                window.TTS_Scheduler.addToQueue($btn);
+                window.TTS_Scheduler.run();
             });
 
-            // 2. 收藏 (Fav)
-            $(document).on('click', '#tts-action-fav', () => {
+            // 2. 收藏 (Fav) - 带上下文
+            $(document).on('click', '#tts-action-fav', async () => {
                 const $btn = $('#tts-bubble-menu').data('target');
                 $('#tts-bubble-menu').fadeOut(100);
-
                 if (!$btn) return;
 
-                // 构造收藏数据
+                // --- 核心：上下文采集 ---
+                // 假设气泡结构是 .mes (SillyTavern 标准) 或类似结构
+                // 我们往上找最近的 3 条消息
+                let context = [];
+                let $msgContainer = $btn.closest('.mes'); // 找到当前气泡容器
+                if ($msgContainer.length) {
+                    // 拿到之前的兄弟元素
+                    let $prev = $msgContainer.prevAll('.mes').slice(0, 3);
+                    // 因为 prevAll 是倒序的，我们要反转回来
+                    $($prev.get().reverse()).each((i, el) => {
+                        // 提取文本，去掉名字等杂质
+                        let text = $(el).find('.mes_text').text() || $(el).text();
+                        context.push(text.substring(0, 100) + "..."); // 截断一下防止太长
+                    });
+                }
+                // -----------------------
+
                 const favItem = {
-                    id: Date.now(),
-                    char: $btn.data('voice-name'),
+                    char_name: $btn.data('voice-name') || "Unknown",
                     text: $btn.data('text'),
-                    url: $btn.attr('data-audio-url'),
-                    date: new Date().toLocaleString()
+                    audio_url: $btn.attr('data-audio-url'),
+                    context: context // 加入采集到的上下文
                 };
 
-                // 读取并写入 localStorage
-                let favs = [];
-                try { favs = JSON.parse(localStorage.getItem('tts_favorites') || '[]'); } catch(e){}
+                try {
+                    await window.TTS_API.addFavorite(favItem);
 
-                if (favs.some(f => f.url === favItem.url)) {
-                    alert("已经收藏过了~");
-                    return;
+                    // 提示成功
+                    if(window.TTS_Utils && window.TTS_Utils.showNotification) {
+                        window.TTS_Utils.showNotification("❤️ 已永久收藏", "success");
+                    } else {
+                        alert("❤️ 已保存到服务端收藏夹");
+                    }
+                } catch(e) {
+                    alert("收藏失败: " + e.message);
                 }
-
-                favs.unshift(favItem);
-                localStorage.setItem('tts_favorites', JSON.stringify(favs));
-
-                // 提示
-                if(window.TTS_Utils && window.TTS_Utils.showNotification) {
-                    window.TTS_Utils.showNotification("❤️ 已加入收藏夹", "success");
-                } else {
-                    alert("❤️ 已加入收藏夹");
-                }
-            });
-
-            // 3. 菜单里的“播放” (可选，如果菜单里保留了播放按钮)
-            $(document).on('click', '#tts-action-play', () => {
-                const $btn = $('#tts-bubble-menu').data('target');
-                $('#tts-bubble-menu').fadeOut(100);
-                // 直接触发该气泡的左键点击事件，复用已有逻辑
-                if($btn) $btn.click();
             });
         }
     };
