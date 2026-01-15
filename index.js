@@ -55,24 +55,22 @@
         console.log("✅ [TTS] 开始初始化插件核心...");
 
         const cachedStyle = localStorage.getItem('tts_bubble_style');
-        if (cachedStyle) {
-            document.body.setAttribute('data-bubble-style', cachedStyle);
-        }
+        const styleToApply = cachedStyle || 'default';
 
-        // 1. 模块初始化 (确保所有子模块的 init 方法都被调用)
+        document.body.setAttribute('data-bubble-style', styleToApply);
+        console.log(`🎨 [Init] 皮肤已加载: ${styleToApply}`);
+
+        // 2. 模块初始化
         if (window.TTS_API) window.TTS_API.init(MANAGER_API);
         if (window.TTS_State) window.TTS_State.init();
         if (window.TTS_Parser) window.TTS_Parser.init();
         if (window.TTS_Events) window.TTS_Events.init();
         if (window.TTS_Scheduler) window.TTS_Scheduler.init();
 
-        // 2. 建立局部引用 (快捷方式)
+        // 3. 建立局部引用
         const TTS_Utils = window.TTS_Utils;
         const CACHE = window.TTS_State.CACHE;
         const Scheduler = window.TTS_Scheduler;
-
-        const savedStyle = localStorage.getItem('tts_bubble_style') || 'default';
-        document.body.setAttribute('data-bubble-style', savedStyle);
 
         // 3. 加载全局 CSS
         TTS_Utils.loadGlobalCSS(`${MANAGER_API}/static/css/style.css?t=${new Date().getTime()}`, (cssContent) => {
@@ -203,7 +201,6 @@
                 if (checked && CACHE.settings.enabled !== false) Scheduler.scanAndSchedule();
             } catch(e) {}
         }
-        // 【修改后的完整函数】
         async function changeBubbleStyle(styleName) {
             console.log("🎨 正在切换风格为:", styleName);
 
@@ -211,20 +208,21 @@
             document.body.setAttribute('data-bubble-style', styleName);
             localStorage.setItem('tts_bubble_style', styleName);
 
-            // 2. 发送到后端保存到 system_settings.json
+            // 2. 发送到后端保存 (统一使用 update_settings 接口)
             try {
-                // 注意：MANAGER_API 已经在 index.js 开头定义了，通常是 http://127.0.0.1:3000
-                const response = await fetch(`${MANAGER_API}/save_style`, {
+                // ⚠️ 修改了 endpoint：从 /save_style 变为 /update_settings
+                const response = await fetch(`${MANAGER_API}/update_settings`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ style: styleName })
+                    // ⚠️ 修改了键名：确保发送的是 bubble_style，对应 Python 里的定义
+                    body: JSON.stringify({ bubble_style: styleName })
                 });
 
                 const res = await response.json();
                 if(res.status === 'success') {
                     console.log("✅ 风格已永久保存:", styleName);
 
-                    // 更新本地缓存里的 settings，防止刷新前出现数据不一致
+                    // 更新本地缓存
                     if(window.TTS_State && window.TTS_State.CACHE.settings) {
                         window.TTS_State.CACHE.settings.bubble_style = styleName;
                     }

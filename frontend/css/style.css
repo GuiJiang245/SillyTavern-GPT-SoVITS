@@ -628,293 +628,158 @@ body[data-bubble-style="kawaii"] .voice-bubble.loading {
 
 
 /* ==========================================================================
-   PART 3: 控制面板与UI组件 (Control Panel & UI)
-   说明：原样保留，未做任何修改。
+   PART 3: 终极修复版面板 (Fix & Chameleon)
+   说明：修复了菜单点不开的问题，并强制背景变色！
    ========================================================================== */
 
 /* --- 悬浮球 --- */
 #tts-manager-btn {
     position: fixed; top: 10px; right: 100px; z-index: 20000;
-    background: rgba(0,0,0,0.7); color: #fff; padding: 6px 12px;
-    border-radius: 4px; cursor: pointer; border: 1px solid rgba(255,255,255,0.3);
-    font-size: 13px; touch-action: none; user-select: none;
-    transition: background 0.2s;
+    /* 强制使用皮肤颜色 */
+background: var(--s-ready-bg, rgba(0,0,0,0.7)) !important;
+    color: var(--s-ready-color, #fff) !important;
+border: var(--s-ready-border, 1px solid rgba(255,255,255,0.3)) !important;
+    font-family: var(--bubble-font-family, sans-serif);
+padding: 6px 12px;
+    border-radius: var(--bubble-radius, 4px);
+cursor: pointer; font-size: 13px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    transition: all 0.3s;
 }
-#tts-manager-btn:hover { background: rgba(0,0,0,0.9); }
+#tts-manager-btn:hover { filter: brightness(1.1); transform: translateY(-1px); }
 
 /* --- 通知条 --- */
 #tts-notification-bar {
     position: fixed; top: -50px; left: 50%; transform: translateX(-50%);
-    z-index: 20005; background: #d32f2f; color: white;
-    padding: 8px 20px; border-radius: 4px; box-shadow: 0 2px 10px rgba(0,0,0,0.3);
-    font-size: 14px; transition: top 0.5s ease; pointer-events: none;
-    display: flex; align-items: center; gap: 8px; width: 90%; justify-content: center;
+    z-index: 20005;
+    background: linear-gradient(135deg, #ef5350 0%, #c62828 100%);
+    color: white; padding: 8px 20px; border-radius: 20px;
+    box-shadow: 0 4px 15px rgba(198, 40, 40, 0.4);
+    font-size: 14px; transition: top 0.5s; pointer-events: none;
+    display: flex; align-items: center; justify-content: center;
 }
 #tts-notification-bar.show { top: 20px; }
-
-/* --- 自定义下拉菜单 (Custom Select) --- */
-.tts-custom-select {
-    position: relative; width: 100%; user-select: none;
-    font-size: 13px; font-family: "Segoe UI", sans-serif;
-}
-.select-trigger {
-    display: flex; justify-content: space-between; align-items: center;
-    padding: 8px 12px; background: #333; color: #eee;
-    border: 1px solid #555; border-radius: 6px; cursor: pointer;
-    transition: all 0.2s; height: 36px; font-weight: 600;
-}
-.select-trigger:hover { border-color: #888; }
-.arrow-icon { font-style: normal; font-size: 10px; color: #aaa; transition: transform 0.3s; }
-.tts-custom-select.open .arrow-icon { transform: rotate(180deg); }
-
-.select-options {
-    position: absolute; top: 110%; left: 0; width: 100%;
-    background: #2b2b2b; border: 1px solid #444; border-radius: 8px;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.5); z-index: 100;
-    opacity: 0; visibility: hidden; transform: translateY(-10px);
-    transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
-    max-height: 200px; overflow-y: auto;
-}
-.tts-custom-select.open .select-options { opacity: 1; visibility: visible; transform: translateY(0); }
-
-.option-item {
-    padding: 10px 12px; cursor: pointer;
-    border-bottom: 1px solid rgba(255,255,255,0.05);
-    transition: background 0.2s; color: #ccc;
-}
-.option-item:last-child { border-bottom: none; }
-.option-item:hover { background: rgba(255,255,255,0.1); }
-
-/* 下拉菜单颜色适配 */
-.select-trigger[data-value="default"], .option-item[data-value="default"]:hover {
-    background: #f1f8e9; color: #33691e; border-color: #dcedc8;
-}
-.select-trigger[data-value="classic"], .option-item[data-value="classic"]:hover {
-    background: #c6e2b8; color: #2b2b2b; border-color: #99b88a; font-family: "Consolas", monospace;
-}
-.select-trigger[data-value="kawaii"] {
-    background: linear-gradient(135deg, #e0f7fa 0%, #b2ebf2 100%); color: #006064; border-color: #80deea;
-}
-.option-item[data-value="kawaii"]:hover {
-    background: linear-gradient(90deg, #b39ddb 0%, #f48fb1 100%); color: white;
-}
-.select-trigger[data-value="bloom"] {
-    background: linear-gradient(to right, #fff0f5, #ffebee); color: #880e4f; border-color: #f8bbd0;
-}
-.option-item[data-value="bloom"]:hover {
-    background: #fce4ec; color: #d81b60; border-left: 3px solid #ec407a;
-}
 
 /* --- 现代面板 (Dashboard) --- */
 .tts-overlay {
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(4px);
+    background: rgba(0, 0, 0, 0.4); backdrop-filter: blur(3px);
     z-index: 20001; display: flex; align-items: center; justify-content: center;
-    animation: fadeIn 0.2s ease-out;
 }
-@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
-.tts-panel {
-    background: #1e1e24; color: #e0e0e0;
-    width: 90%; max-width: 450px; max-height: 80vh;
+/* ⚠️ 重点修改：这里用了 ID 选择器，优先级最高！ */
+#tts-dashboard {
+/* 核心变色逻辑：自动吸取皮肤的 Loading 颜色作为背景 */
+    background: var(--s-load-bg, #1e1e24) !important;
+color: var(--s-load-color, #e0e0e0) !important;
+border: var(--s-ready-border, 1px solid rgba(255,255,255,0.1)) !important;
+
+    font-family: var(--bubble-font-family, sans-serif);
+/* ⚠️ 删除了 overflow: hidden，防止菜单被切掉 */
+border-radius: calc(var(--bubble-radius, 12px) + 4px);
+
+    width: 90%; max-width: 450px; max-height: 85vh;
     display: flex; flex-direction: column;
-    border-radius: 16px; border: 1px solid rgba(255, 255, 255, 0.08);
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
-    font-family: 'Segoe UI', system-ui, sans-serif;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
     position: relative;
 }
 
+/* 标题栏 */
 .tts-header {
-    background: linear-gradient(90deg, #2b2d42 0%, #1e1e24 100%);
-    padding: 16px 20px; border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    background: var(--s-ready-bg, #2b2d42) !important;
+border-bottom: var(--s-ready-border, 1px solid rgba(255,255,255,0.05));
+    padding: 16px 20px;
     display: flex; justify-content: space-between; align-items: center;
+    /* 给标题栏单独加圆角，因为面板去掉了 overflow: hidden */
+border-radius: calc(var(--bubble-radius, 12px) + 4px) calc(var(--bubble-radius, 12px) + 4px) 0 0;
 }
 .tts-header h3 {
-    font-size: 18px; font-weight: 600; margin: 0;
-    background: linear-gradient(45deg, #fff, #a5a5a5);
-    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    font-size: 18px; font-weight: 700; margin: 0;
+color: var(--s-ready-color, #fff) !important;
 }
 .tts-close {
-    color: #fff; opacity: 0.6; cursor: pointer;
-    font-size: 28px; font-weight: 300; line-height: 1;
+    color: var(--s-ready-color, #fff) !important;
+opacity: 0.7; cursor: pointer; font-size: 24px;
 }
-.tts-close:hover { opacity: 1; }
 
+/* 内容区域 */
 .tts-content {
-    background: #18181b; padding: 20px;
-    flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch;
+    background: transparent;
+    padding: 20px;
+    flex: 1; overflow-y: auto;
 }
 
+/* 卡片 */
 .tts-card {
-    background: rgba(255, 255, 255, 0.03); border-radius: 12px;
-    padding: 16px; margin-bottom: 16px; border: 1px solid rgba(255, 255, 255, 0.03);
-}
-.tts-card-title {
-    font-size: 13px; color: #6c757d; text-transform: uppercase;
-    letter-spacing: 1px; margin-bottom: 12px; font-weight: 700;
-}
-
-/* 开关组件 */
-.tts-switch-row {
-    display: flex; justify-content: space-between; align-items: center;
-    padding: 8px 0; cursor: pointer;
-}
-.tts-toggle {
-    appearance: none; -webkit-appearance: none; width: 44px; height: 24px;
-    background: #3f3f46; border-radius: 20px; position: relative;
-    cursor: pointer; transition: background 0.3s; outline: none;
-}
-.tts-toggle::after {
-    content: ''; position: absolute; top: 2px; left: 2px;
-    width: 20px; height: 20px; background: white; border-radius: 50%;
-    transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
-    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-}
-.tts-toggle:checked { background: #10b981; }
-.tts-toggle:checked::after { transform: translateX(20px); }
-
-/* 输入框 */
-.tts-input-row { margin-top: 10px; }
-.tts-input-label { display: block; font-size: 12px; color: #a1a1aa; margin-bottom: 6px; }
-.tts-modern-input {
-    width: 100%; background: #27272a; border: 1px solid #3f3f46;
-    color: #eee; padding: 10px 12px; border-radius: 8px; font-size: 13px;
-    transition: all 0.2s; box-sizing: border-box;
-}
-.tts-modern-input:focus {
-    border-color: #10b981; background: #202023; outline: none;
-    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+/* 卡片背景稍微深一点或浅一点，增加层次感 */
+    background: rgba(0, 0, 0, 0.05);
+    border: 1px solid rgba(128, 128, 128, 0.1);
+border-radius: var(--bubble-radius, 8px);
+    padding: 16px; margin-bottom: 16px;
 }
 
-/* 按钮与列表 */
+/* 输入框 & 按钮 */
+.tts-modern-input, .select-trigger {
+    background: var(--s-wait-bg, #333) !important;
+color: var(--s-wait-color, #eee) !important;
+border: var(--s-wait-border, 1px solid #555) !important;
+    border-radius: var(--bubble-radius, 6px);
+}
 .btn-primary {
-    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white;
-    border: none; padding: 8px 16px; border-radius: 6px;
-    font-size: 13px; font-weight: 600; cursor: pointer; transition: filter 0.2s;
-}
-.btn-primary:hover { filter: brightness(1.1); }
-.btn-icon {
-    display: flex; align-items: center; justify-content: center;
-    background: #3f3f46; color: #fff; border: none; border-radius: 6px;
-    padding: 8px; cursor: pointer;
+    background: var(--s-play-bg, blue) !important;
+color: var(--s-play-color, white) !important;
+border: var(--s-play-border, none) !important;
+border-radius: var(--bubble-radius, 6px);
 }
 
-.tts-list-item {
-    background: rgba(255,255,255,0.02); margin-bottom: 6px;
-    border-radius: 8px; padding: 10px 12px; border: 1px solid rgba(255,255,255,0.02);
-    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+/* --- 下拉菜单修复 (关键区域) --- */
+.tts-custom-select {
+    position: relative; width: 100%;
 }
-.col-info {
-    flex: 1; display: flex; align-items: center; gap: 8px;
-    overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
-    font-size: 13px; color: #ccc;
-}
-.col-model-name { color: #10b981; font-family: monospace; }
-.btn-red {
-    background: rgba(239, 68, 68, 0.15); color: #fca5a5;
-    border: 1px solid rgba(239, 68, 68, 0.3); padding: 4px 10px;
-    border-radius: 6px; font-size: 12px; cursor: pointer; transition: all 0.2s;
-}
-.btn-red:hover { background: rgba(239, 68, 68, 0.8); color: white; }
-
-/* --- 新增下拉菜单样式适配 --- */
-
-/* Obsidian (黑曜石) - 菜单样式 */
-.select-trigger[data-value="obsidian"] {
-    background: linear-gradient(180deg, #2c2c2c 0%, #000 100%);
-    color: #e0e0e0;
-    border-color: #444;
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.1);
-}
-.option-item[data-value="obsidian"]:hover {
-    background: #000;
-    color: #fff;
-    border-left: 3px solid #fff;
+.select-trigger {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 12px; cursor: pointer; height: 36px;
 }
 
-/* Cyberpunk (赛博朋克) - 菜单样式 */
-.select-trigger[data-value="cyberpunk"] {
-    background: #050505;
-    color: #00ffff;
-    border: 1px solid #00aaaa;
-    font-family: "Consolas", monospace;
-    text-shadow: 0 0 2px rgba(0,255,255,0.5);
-}
-.option-item[data-value="cyberpunk"]:hover {
-    background: rgba(0, 255, 255, 0.1);
-    color: #00ffff;
-    border: 1px solid #00ffff;
-    box-shadow: 0 0 8px rgba(0, 255, 255, 0.4);
+.select-options {
+/* ⚠️ 修复大法：不再悬浮，改成直接显示在下方 */
+/* 这样就不会被任何东西遮挡了！ */
+    position: relative;
+    top: 5px; left: 0; width: 100%;
+
+background: var(--s-load-bg, #2b2b2b) !important;
+border: var(--s-ready-border, 1px solid #444) !important;
+    color: var(--s-load-color, #eee) !important;
+
+border-radius: var(--bubble-radius, 8px);
+    z-index: 100;
+
+    /* 动画处理 */
+    display: none; /* 默认隐藏 */
+    opacity: 0; transform: translateY(-10px);
+    transition: all 0.2s;
 }
 
-/* Ink (水墨) - 菜单样式 */
-.select-trigger[data-value="ink"] {
-    background: #fdfbf7; /* 米宣纸色 */
-    color: #2c3e50;
-    border: 1px solid #dcdcdc;
-    font-family: "Kaiti", serif; /* 菜单保持字体一致 */
-}
-.option-item[data-value="ink"]:hover {
-    background: linear-gradient(90deg, #e0e0e0 0%, #f5f5f5 100%);
-    color: #000;
-    /* 左侧朱砂红边框，模拟盖章 */
-    border-left: 4px solid #c0392b;
-    font-family: "Kaiti", serif;
-}
-/* Scroll (羊皮卷) - 菜单适配 */
-.select-trigger[data-value="scroll"] {
-    background: #fdf5e6; color: #5d4037;
-    border: 3px double #a1887f; /* 双线边框 */
-    font-family: "Georgia", serif;
-}
-.option-item[data-value="scroll"]:hover {
-    background: #fff3e0; color: #3e2723;
-    font-family: "Georgia", serif;
+/* 当菜单打开时 */
+.tts-custom-select.open .select-options {
+    display: block; /* 撑开布局 */
+    opacity: 1; transform: translateY(0);
 }
 
-/* Steampunk (蒸汽朋克) - 菜单适配 */
-.select-trigger[data-value="steampunk"] {
-    background: linear-gradient(180deg, #d7ccc8 0%, #a1887f 100%);
-    color: #3e2723;
-    border: 1px solid #5d4037;
-    font-family: "Courier New", monospace;
+.option-item {
+    padding: 10px 12px; cursor: pointer;
+    border-bottom: 1px solid rgba(128,128,128,0.1);
 }
-.option-item[data-value="steampunk"]:hover {
-    background: linear-gradient(90deg, #ffecb3 0%, #ffca28 100%);
-    color: #000;
-    border-left: 3px solid #bf360c;
+.option-item:hover {
+    background: var(--s-play-bg, rgba(255,255,255,0.1));
+color: var(--s-play-color, #fff);
 }
-/* Rouge (魅影) */
-.select-trigger[data-value="rouge"] {
-    background: #2a1a1a; color: #ffcdd2;
-    border-color: #880e4f;
-    box-shadow: inset 0 0 5px rgba(136, 14, 79, 0.5);
-}
-.option-item[data-value="rouge"]:hover {
-    background: linear-gradient(90deg, #4a0000 0%, #880e4f 100%);
-    color: #fff; border-left: 3px solid #ffd700;
-}
-
-/* Tactical (战术) */
-.select-trigger[data-value="tactical"] {
-    background: #000; color: #00e676;
-    border: 1px dashed #00e676;
-    font-family: monospace; letter-spacing: 1px;
-}
-.option-item[data-value="tactical"]:hover {
-    background: #1b5e20; color: #00e676;
-    border: 1px solid #00e676;
-}
-
-/* Holo (光环) */
-.select-trigger[data-value="holo"] {
-    background: #e1f5fe; color: #0277bd;
-    border: 1px solid #81d4fa;
-}
-.option-item[data-value="holo"]:hover {
-    background: #fff; color: #03a9f4;
-    box-shadow: 0 0 10px rgba(3, 169, 244, 0.4);
-}
+/* 开关样式保持不变，太长省略，原样保留即可，或者直接用下面的简写 */
+.tts-switch-row { display: flex; justify-content: space-between; padding: 8px 0; }
+.tts-toggle { appearance: none; width: 40px; height: 22px; background: rgba(128,128,128,0.3); border-radius: 20px; position: relative; transition:0.3s;}
+.tts-toggle::after { content:''; position:absolute; top:2px; left:2px; width:18px; height:18px; background:#fff; border-radius:50%; transition:0.3s; }
+.tts-toggle:checked { background: var(--s-play-bg, #10b981) !important; }
+.tts-toggle:checked::after { transform: translateX(18px); }
 
 /* ==========================================================================
    PART 4: 智能变色菜单 (Chameleon Menu)
@@ -1003,4 +868,130 @@ font-weight: var(--s-play-font-weight, 600);
 @keyframes tts-menu-pop {
     from { opacity: 0; transform: scale(0.8) translateY(-10px); }
     to { opacity: 1; transform: scale(1) translateY(0); }
+}
+/* ==========================================================================
+   PART 5: 下拉菜单风格预览 (Style Preview in Menu)
+   说明：让选项列表里的每一项都显示出该风格独特的配色和字体！
+   ========================================================================== */
+
+/* 1. 基础修正：让选项稍微高一点，方便预览字体 */
+.option-item {
+    transition: all 0.2s;
+    border-left: 3px solid transparent; /*以此来做选中指示*/
+}
+
+/* --- 🌿 Default 森野 --- */
+.option-item[data-value="default"] {
+    background: #f1f8e9 !important; color: #33691e !important;
+    font-family: sans-serif;
+}
+.option-item[data-value="default"]:hover { background: #dcedc8 !important; }
+
+/* --- 📼 Classic 怀旧 --- */
+.option-item[data-value="classic"] {
+    background: #c6e2b8 !important; color: #333 !important;
+    font-family: "Courier New", monospace; /* 复古字体 */
+}
+.option-item[data-value="classic"]:hover { background: #aed581 !important; }
+
+/* --- 💎 Kawaii 幻彩 --- */
+.option-item[data-value="kawaii"] {
+    background: linear-gradient(90deg, #f3e5f5 0%, #e1f5fe 100%) !important;
+    color: #880e4f !important;
+    font-family: "Segoe UI", sans-serif;
+}
+.option-item[data-value="kawaii"]:hover {
+    background: linear-gradient(90deg, #e1bee7 0%, #b3e5fc 100%) !important;
+    font-weight: bold;
+}
+
+/* --- 🌸 Bloom 花信 --- */
+.option-item[data-value="bloom"] {
+    background: #fff0f5 !important; color: #d81b60 !important;
+    font-family: "Nunito", sans-serif;
+}
+.option-item[data-value="bloom"]:hover {
+    background: #fce4ec !important; border-left-color: #ec407a;
+}
+
+/* --- 🖤 Obsidian 黑曜石 --- */
+.option-item[data-value="obsidian"] {
+    background: #1e1e1e !important; color: #4ade80 !important; /* 黑底绿字 */
+    font-family: sans-serif;
+    border-bottom: 1px solid #333;
+}
+.option-item[data-value="obsidian"]:hover {
+    background: #000 !important;
+    box-shadow: inset 0 0 10px rgba(74, 222, 128, 0.2);
+}
+
+/* --- ⚡ Cyberpunk 赛博 --- */
+.option-item[data-value="cyberpunk"] {
+    background: #050505 !important; color: #00ffff !important;
+    font-family: "Consolas", monospace; /* 代码字体 */
+    text-shadow: 0 0 2px rgba(0,255,255,0.5);
+}
+.option-item[data-value="cyberpunk"]:hover {
+    background: #001a1a !important;
+    border-left-color: #00ffff;
+}
+
+/* --- ✒️ Ink 水墨 --- */
+.option-item[data-value="ink"] {
+    background: #fdfbf7 !important; color: #2c3e50 !important;
+    font-family: "Kaiti", "STKaiti", serif; /* 楷体 */
+}
+.option-item[data-value="ink"]:hover {
+    background: #eceff1 !important;
+    border-left-color: #c0392b; /* 朱砂红 */
+}
+
+/* --- 📜 Scroll 羊皮卷 --- */
+.option-item[data-value="scroll"] {
+    background: #fdf5e6 !important; color: #5d4037 !important;
+    font-family: "Georgia", serif; /* 衬线体 */
+}
+.option-item[data-value="scroll"]:hover {
+    background: #ffe0b2 !important;
+    border-left-color: #8d6e63;
+}
+
+/* --- ⚙️ Steampunk 蒸汽 --- */
+.option-item[data-value="steampunk"] {
+    background: #d7ccc8 !important; color: #3e2723 !important;
+    font-family: "Courier New", monospace;
+    border: 1px dashed #8d6e63; /* 铆接感 */
+}
+.option-item[data-value="steampunk"]:hover {
+    background: #ffca28 !important; color: #000 !important;
+}
+
+/* --- 💋 Rouge 魅影 --- */
+.option-item[data-value="rouge"] {
+    background: #2a1a1a !important; color: #ffcdd2 !important;
+    font-family: serif;
+}
+.option-item[data-value="rouge"]:hover {
+    background: linear-gradient(90deg, #4a0000 0%, #880e4f 100%) !important;
+    color: #fff !important;
+}
+
+/* --- 🔫 Tactical 战术 --- */
+.option-item[data-value="tactical"] {
+    background: #000 !important; color: #00e676 !important;
+    font-family: monospace; letter-spacing: 1px;
+}
+.option-item[data-value="tactical"]:hover {
+    background: #1b5e20 !important;
+    border-left-color: #00e676;
+}
+
+/* --- 🛸 Holo 星舰 --- */
+.option-item[data-value="holo"] {
+    background: #e1f5fe !important; color: #0277bd !important;
+    font-family: sans-serif;
+}
+.option-item[data-value="holo"]:hover {
+    background: #fff !important;
+    box-shadow: 0 0 10px rgba(3, 169, 244, 0.4);
 }

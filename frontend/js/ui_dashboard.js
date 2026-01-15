@@ -160,21 +160,32 @@ window.TTS_UI = window.TTS_UI || {};
             const txt = $(this).text();
             const $container = $(this).closest('.tts-custom-select');
 
+            // 1. UI 立即反馈：更新文字显示
             $container.find('.select-trigger span').text(txt);
             $container.find('.select-trigger').attr('data-value', val);
             $('#style-selector').val(val);
             $container.removeClass('open');
 
+            // 2. ⚡️ 核心修复：立即让 Body 变身！(不用刷新页面就能看到效果)
+            document.body.setAttribute('data-bubble-style', val);
+
+            // 3. ⚡️ 核心修复：死死记住它！(写入 localStorage)
+            localStorage.setItem('tts_bubble_style', val);
+            console.log("✅ [UI] 本地缓存已更新为:", val);
+
             try {
-                if(window.TTS_API && window.TTS_API.updateSettings) {
-                    await window.TTS_API.updateSettings({ bubble_style: val });
-                }
+                // 4. 告诉后端保存 (保持之前的逻辑)
                 if(CTX.CACHE && CTX.CACHE.settings) {
                     CTX.CACHE.settings.bubble_style = val;
                 }
-                console.log("样式已切换为:", val);
+
+                if(window.TTS_API && window.TTS_API.updateSettings) {
+                    await window.TTS_API.updateSettings({ bubble_style: val });
+                    console.log("✅ [API] 后端配置已同步:", val);
+                }
             } catch(err) {
-                console.error("样式保存失败", err);
+                console.error("❌ 样式保存失败", err);
+                // 就算后端失败了，至少本地变了，用户体验不会卡顿
             }
         });
 

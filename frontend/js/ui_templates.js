@@ -16,7 +16,7 @@ window.TTS_UI.Templates = (function() {
         <div id="tts-dashboard-overlay" class="tts-overlay">
             <div id="tts-dashboard" class="tts-panel">
                 <div class="tts-header">
-                    <h3 style="margin:0; font-size:16px; font-weight:bold;">🎧 语音配置中心</h3>
+                    <h3 class="tts-header-title">🎧 语音配置中心</h3>
                     <button class="tts-close" onclick="$('#tts-dashboard-overlay').remove()"
                             style="background:transparent; border:none; color:inherit; font-size:24px; padding:0 10px;">×</button>
                 </div>
