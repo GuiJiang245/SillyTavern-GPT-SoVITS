@@ -386,7 +386,7 @@
             await loadModule('events');
 
             console.log("🎨 [Loader] 加载UI分层模块...");
-            // await loadModule('ui');
+            // await loadModule('ui_legacy');
             await loadModule('ui_templates');
             await loadModule('ui_dashboard');
             await loadModule('ui_main');
