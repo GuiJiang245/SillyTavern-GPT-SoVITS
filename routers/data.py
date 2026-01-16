@@ -5,6 +5,8 @@ from config import init_settings, load_json, save_json, get_current_dirs, MAPPIN
 from utils import scan_audio_files
 from schemas import BindRequest, UnbindRequest, CreateModelRequest, StyleRequest
 import json
+import re
+import shutil
 import uuid
 from datetime import datetime
 from pydantic import BaseModel
@@ -15,16 +17,23 @@ router = APIRouter()
 # 2. 定义数据模型 (方便 FastAPI 解析)
 class FavoriteItem(BaseModel):
     text: str
-    audio_url: str # 前端传来的相对路径或URL
+    audio_url: str
     char_name: str
-    context: Optional[List[str]] = [] # 上下文列表
+    context: Optional[List[str]] = []
     tags: Optional[str] = ""
+    filename: Optional[str] = None
+    chat_branch: Optional[str] = "Unknown"
+    fingerprint: Optional[str] = ""
 
 class DeleteFavRequest(BaseModel):
     id: str
-
+class MatchRequest(BaseModel):
+    char_name: str
+    fingerprints: List[str]
+    chat_branch: Optional[str] = None
 # 定义收藏文件路径
 FAVORITES_FILE = "data/favorites.json"
+
 @router.get("/get_data")
 def get_data():
     settings = init_settings()
@@ -131,29 +140,104 @@ def _load_favs():
 def get_favorites():
     return {"favorites": _load_favs()}
 
+    # 定义目录常量
+CACHE_DIR = "Cache"
+FAV_AUDIO_DIR = "data/favorites_audio"
 @router.post("/add_favorite")
 def add_favorite(item: FavoriteItem):
     favs = _load_favs()
-
-    # 构造完整记录
+    if isinstance(favs, dict):
+        print("⚠️ 警告: favorites.json 格式错误 (是dict不是list)，已自动重置为空列表。")
+        if "favorites" in favs and isinstance(favs["favorites"], list):
+            favs = favs["favorites"]
+        else:
+            favs = []
+    # 1. 准备新记录的数据
     new_entry = item.dict()
-    new_entry["id"] = str(uuid.uuid4()) # 生成唯一ID
+    new_entry["id"] = str(uuid.uuid4())
     new_entry["created_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    # 插入到最前面
-    favs.insert(0, new_entry)
+    # === 【核心逻辑】文件搬运 ===
+    # 如果前端传了 filename，说明需要从 Cache 备份文件
+    if item.filename:
+        # 确保目标文件夹存在
+        os.makedirs(FAV_AUDIO_DIR, exist_ok=True)
 
-    # 确保 data 目录存在并保存
+        source_path = os.path.join(CACHE_DIR, item.filename)
+        target_filename = f"fav_{new_entry['id']}_{item.filename}"
+        target_path = os.path.join(FAV_AUDIO_DIR, target_filename)
+
+        # 检查源文件还在不在 (防止用户手快先把 Cache 删了)
+        if os.path.exists(source_path):
+            try:
+                shutil.copy2(source_path, target_path)
+                print(f"✅ [收藏] 音频已备份: {target_path}")
+                new_entry["audio_url"] = f"/favorites/{target_filename}"
+                new_entry["relative_path"] = target_filename
+            except Exception as e:
+                print(f"⚠️ [收藏] 备份失败: {e}")
+        else:
+            print(f"⚠️ [收藏] 源文件 {source_path} 未找到，仅保存文本记录。")
+    favs.insert(0, new_entry)
     os.makedirs("data", exist_ok=True)
     save_json(FAVORITES_FILE, favs)
-
     return {"status": "success", "id": new_entry["id"]}
-
 @router.post("/delete_favorite")
 def delete_favorite(req: DeleteFavRequest):
     favs = _load_favs()
-    # 过滤掉要删除的ID
-    new_favs = [f for f in favs if f["id"] != req.id]
+    target_fav = next((f for f in favs if f["id"] == req.id), None)
 
+    if target_fav:
+        filename_to_del = target_fav.get("relative_path")
+        if not filename_to_del and target_fav.get("audio_url", "").startswith("/favorites/"):
+            filename_to_del = target_fav["audio_url"].replace("/favorites/", "")
+        if filename_to_del:
+            file_path = os.path.join(FAV_AUDIO_DIR, filename_to_del)
+            # 安全检查：确保要删的文件确实在 favorites_audio 文件夹里
+            if os.path.exists(file_path) and os.path.isfile(file_path):
+                try:
+                    os.remove(file_path)
+                    print(f"🗑️ [删除] 已清理物理文件: {file_path}")
+                except Exception as e:
+                    print(f"⚠️ [删除] 文件删除失败: {e}")
+            else:
+                print(f"⚠️ [删除] 文件未找到或路径异常，跳过: {file_path}")
+    new_favs = [f for f in favs if f["id"] != req.id]
     save_json(FAVORITES_FILE, new_favs)
+
     return {"status": "success"}
+@router.post("/get_matched_favorites")
+def get_matched_favorites(req: MatchRequest):
+    all_favs = _load_favs()
+    if req.char_name:
+        target_favs = [f for f in all_favs if f.get('char_name') == req.char_name]
+    else:
+        target_favs = all_favs
+    current_fp_set = set(req.fingerprints)
+
+    result_current = []
+    result_others = []
+
+    for fav in target_favs:
+        is_match = False
+        fav_fp = fav.get('fingerprint')
+        if fav_fp and fav_fp in current_fp_set:
+            is_match = True
+        elif req.chat_branch and fav.get('chat_branch') == req.chat_branch:
+            is_match = True
+
+        # 3. 归类
+        fav['is_current'] = is_match
+        if is_match:
+            result_current.append(fav)
+        else:
+            result_others.append(fav)
+
+    return {
+        "status": "success",
+        "data": {
+            "current": result_current,
+            "others": result_others,
+            "total_count": len(target_favs)
+        }
+    }

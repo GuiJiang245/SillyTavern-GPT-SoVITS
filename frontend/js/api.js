@@ -89,6 +89,15 @@
                 body: JSON.stringify({ id: id })
             });
         },
+
+        async getMatchedFavorites(payload) {
+            const res = await fetch(this._url('/get_matched_favorites'), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            return await res.json();
+        },
         // ===========================================
         // 【新增】管理类 API (原本散落在 ui_legacy.js 里)
         // ===========================================

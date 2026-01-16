@@ -32,7 +32,6 @@ window.TTS_Mobile = window.TTS_Mobile || {};
             icon: '⚙️',
             bg: '#333',
             render: async (container) => {
-                // ... (这部分保持你原来的设置逻辑不变) ...
                 container.html(`
                     <div style="display:flex; flex-direction:column; height:100%; align-items:center; justify-content:center; color:#888;">
                         <div style="font-size:24px; margin-bottom:10px;">⏳</div>
@@ -79,9 +78,7 @@ window.TTS_Mobile = window.TTS_Mobile || {};
                 $panel.addClass('mobile-settings-content');
                 $panel.removeAttr('id');
 
-                // 🟢 使用新的通用函数生成导航栏 (这里稍微改下 title)
                 const $navBar = createNavbar("系统配置");
-                // 设置里原来是写的 "‹ 设置"，如果你想保持一致可以用:
                 // $navBar.find('.nav-left').html('<span style="font-size:20px; margin-right:5px;">‹</span> 设置');
 
                 container.empty();
@@ -98,77 +95,136 @@ window.TTS_Mobile = window.TTS_Mobile || {};
             icon: '❤️',
             bg: '#e11d48',
             render: async (container) => {
-                // 1. 先清空并显示加载
                 container.empty();
-
-                // 🟢 [修复] 加上导航栏
                 container.append(createNavbar("我的收藏"));
 
-                // 创建一个滚动内容区
-                const $content = $('<div style="padding:15px; flex:1; overflow-y:auto;"></div>');
-                $content.html('<div style="text-align:center; padding-top:20px;">正在获取云端收藏...</div>');
+                // 1. 创建 Tab 栏
+                const $tabs = $(`
+                    <div style="display:flex; padding:10px 15px; gap:10px;">
+                        <div class="fav-tab active" data-tab="current" style="flex:1; text-align:center; padding:8px; background:#fff; border-radius:8px; font-weight:bold; color:#e11d48; box-shadow:0 1px 2px rgba(0,0,0,0.1); cursor:pointer;">当前对话</div>
+                        <div class="fav-tab" data-tab="others" style="flex:1; text-align:center; padding:8px; background:rgba(255,255,255,0.5); border-radius:8px; color:#666; cursor:pointer;">其他收藏</div>
+                    </div>
+                `);
+                container.append($tabs);
+
+                const $content = $('<div style="padding:0 15px 15px 15px; flex:1; overflow-y:auto;"></div>');
+                $content.html('<div style="text-align:center; padding-top:20px; color:#999;">正在智能匹配...</div>');
                 container.append($content);
 
+                // 2. 准备数据
+                const fingerprints = window.TTS_Utils ? window.TTS_Utils.getCurrentContextFingerprints() : [];
+
+                // 🛠️ [修复 1] 修正为 let
+                let charName = "";
                 try {
-                    const res = await window.TTS_API.getFavorites();
-                    const list = res.favorites || [];
-
-                    if (list.length === 0) {
-                        $content.html('<div style="padding:20px; text-align:center; color:#888;">暂无收藏<br>请在对话气泡上右键/长按收藏</div>');
-                        return;
+                    if(window.SillyTavern && window.SillyTavern.getContext) {
+                        const ctx = window.SillyTavern.getContext();
+                        if (ctx.characters && ctx.characterId !== undefined) {
+                            const charObj = ctx.characters[ctx.characterId];
+                            if (charObj && charObj.name) {
+                                charName = charObj.name;
+                            }
+                        }
                     }
+                } catch(e) {
+                    console.warn("获取角色名失败:", e);
+                }
 
-                    let html = '<div class="fav-list">';
-                    list.forEach(item => {
-                        let contextHtml = '';
-                        if(item.context && item.context.length) {
-                            contextHtml = `<div style="font-size:12px; color:#666; background:rgba(0,0,0,0.05); padding:6px; border-radius:4px; margin-bottom:6px;">
-                                📝 ${item.context[item.context.length-1]}
-                            </div>`;
+                console.log("🔍 [手机收藏] 正在查询角色:", charName || "所有角色");
+
+                // 3. 发送智能请求
+                try {
+                    // 🛠️ [修复 2] 变量名统一为 res
+                    const res = await window.TTS_API.getMatchedFavorites({
+                        char_name: charName,
+                        fingerprints: fingerprints
+                    });
+
+                    if (res.status !== 'success') throw new Error(res.msg);
+
+                    const data = res.data; // { current: [], others: [] }
+
+                    // 4. 渲染函数
+                    const renderList = (list, emptyMsg) => {
+                        if (!list || list.length === 0) {
+                            return `<div style="padding:40px 20px; text-align:center; color:#888; font-size:14px;">${emptyMsg}</div>`;
                         }
 
-                        html += `
-                        <div class="fav-item" data-id="${item.id}" data-url="${item.audio_url}" style="background:#fff; border-radius:12px; padding:12px; margin-bottom:12px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
-                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                                <strong style="color:#e11d48; font-size:14px;">${item.char_name}</strong>
-                                <span style="font-size:11px; color:#999;">${item.created_at.split(' ')[0]}</span>
-                            </div>
-                            ${contextHtml}
-                            <div style="font-size:14px; color:#333; margin-bottom:10px; line-height:1.4;">“${item.text}”</div>
+                        return list.map(item => {
+                            let contextHtml = '';
+                            if(item.context && item.context.length) {
+                                contextHtml = `<div style="font-size:12px; color:#666; background:rgba(0,0,0,0.05); padding:6px; border-radius:4px; margin-bottom:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                                    📝 ${item.context[item.context.length-1]}
+                                </div>`;
+                            }
+                            const dateStr = item.created_at ? item.created_at.split(' ')[0] : '';
+                            const borderStyle = item.is_current ? 'border-left: 4px solid #e11d48;' : '';
 
-                            <div style="display:flex; gap:10px;">
-                                <button class="fav-play-btn" style="flex:1; background:#f3f4f6; border:none; padding:8px; border-radius:8px; font-weight:600; color:#374151;">▶ 播放</button>
-                                <button class="fav-del-btn" style="width:40px; background:#fee2e2; border:none; color:#dc2626; border-radius:8px; display:flex; align-items:center; justify-content:center;">🗑️</button>
-                            </div>
-                        </div>
-                        `;
-                    });
-                    html += '</div>';
-                    $content.html(html);
+                            return `
+                                <div class="fav-item" data-id="${item.id}" data-url="${item.audio_url}" style="background:#fff; border-radius:12px; padding:12px; margin-bottom:12px; box-shadow:0 1px 3px rgba(0,0,0,0.05); ${borderStyle}">
+                                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                                        <strong style="color:#e11d48; font-size:14px;">${item.char_name || '未知角色'}</strong>
+                                        <span style="font-size:11px; color:#999;">${dateStr}</span>
+                                    </div>
+                                    ${contextHtml}
+                                    <div style="font-size:14px; color:#333; margin-bottom:10px; line-height:1.4;">“${item.text}”</div>
+                                    <div style="display:flex; gap:10px;">
+                                        <button class="fav-play-btn" style="flex:1; background:#f3f4f6; border:none; padding:8px; border-radius:8px; font-weight:600; color:#374151;">▶ 播放</button>
+                                        <button class="fav-del-btn" style="width:40px; background:#fee2e2; border:none; color:#dc2626; border-radius:8px; display:flex; align-items:center; justify-content:center;">🗑️</button>
+                                    </div>
+                                </div>`;
+                        }).join('');
+                    };
 
-                    // 绑定事件 (注意作用域变为 $content)
-                    $content.find('.fav-play-btn').click(function(e) {
-                        e.stopPropagation();
-                        const $item = $(this).closest('.fav-item');
-                        const url = $item.data('url');
-                        const audio = new Audio(url);
-                        audio.play();
+                    $content.html(renderList(data.current, "当前对话没有收藏记录<br>试着去其他收藏里找找？"));
+
+                    // 5. 绑定 Tab 切换
+                    $tabs.find('.fav-tab').click(function() {
+                        const $t = $(this);
+                        $tabs.find('.fav-tab').removeClass('active').css({background:'rgba(255,255,255,0.5)', color:'#666', boxShadow:'none'});
+                        $t.addClass('active').css({background:'#fff', color:'#e11d48', boxShadow:'0 1px 2px rgba(0,0,0,0.1)'});
+
+                        const tabType = $t.data('tab');
+                        if (tabType === 'current') {
+                            $content.html(renderList(data.current, "当前对话没有收藏记录"));
+                        } else {
+                            $content.html(renderList(data.others, "暂无其他收藏"));
+                        }
+                        bindListEvents();
                     });
 
-                    $content.find('.fav-del-btn').click(async function(e) {
-                        e.stopPropagation();
-                        if(!confirm("确定删除这条收藏吗？")) return;
-                        const $item = $(this).closest('.fav-item');
-                        const id = $item.data('id');
-                        try {
-                            await window.TTS_API.deleteFavorite(id);
-                            $item.fadeOut(300, function(){ $(this).remove(); });
-                        } catch(err) { alert("删除失败"); }
-                    });
+                    // 6. 绑定列表按钮
+                    function bindListEvents() {
+                        $content.find('.fav-play-btn').off().click(function(e) {
+                            e.stopPropagation();
+                            const $item = $(this).closest('.fav-item');
+                            const url = $item.data('url');
+                            if (window.TTS_Events && window.TTS_Events.playAudio) {
+                                window.TTS_Events.playAudio("fav_play_" + Date.now(), url);
+                            } else {
+                                new Audio(url).play();
+                            }
+                        });
+
+                        $content.find('.fav-del-btn').off().click(async function(e) {
+                            e.stopPropagation();
+                            if(!confirm("确定删除这条收藏吗？")) return;
+                            const $item = $(this).closest('.fav-item');
+                            const id = $item.data('id');
+                            try {
+                                await window.TTS_API.deleteFavorite(id);
+                                $item.fadeOut(300, function(){ $(this).remove(); });
+                                data.current = data.current.filter(i => i.id !== id);
+                                data.others = data.others.filter(i => i.id !== id);
+                            } catch(err) { alert("删除失败: " + err.message); }
+                        });
+                    }
+
+                    bindListEvents();
 
                 } catch (e) {
                     console.error(e);
-                    $content.html('<div style="padding:20px; text-align:center; color:red;">加载失败</div>');
+                    $content.html(`<div style="padding:20px; text-align:center; color:red;">加载失败: ${e.message}</div>`);
                 }
             }
         },
@@ -196,7 +252,6 @@ window.TTS_Mobile = window.TTS_Mobile || {};
             bg: '#10b981',
             render: (container) => {
                 container.empty();
-                // 🟢 [修复] 加上导航栏
                 container.append(createNavbar("拨号键盘"));
                 container.append(`<div style="padding:20px; text-align:center; flex:1; display:flex; align-items:center; justify-content:center;">拨号盘界面<br>(未来扩展)</div>`);
             }
@@ -269,8 +324,6 @@ window.TTS_Mobile = window.TTS_Mobile || {};
 
         const $screen = $('#mobile-screen-content');
         $screen.empty();
-        // 注意：这里不需要手动加 navbar 了，由各个 App 的 render 函数内部加
-        // 这样可以灵活控制有些全屏应用（比如游戏）不需要 navbar
         const $appContainer = $(`<div class="app-container" style="width:100%; height:100%; display:flex; flex-direction:column; background:#f2f2f7; color:#000;"></div>`);
 
         if(app.render) {
@@ -324,8 +377,6 @@ window.TTS_Mobile = window.TTS_Mobile || {};
         $('#tts-mobile-root').removeClass('minimized');
         $('#tts-mobile-trigger').fadeOut();
         STATE.isOpen = true;
-
-        // 🟢 [修复核心痛点]：每次打开手机，强制回到桌面！
         renderHomeScreen();
     }
 
@@ -333,7 +384,6 @@ window.TTS_Mobile = window.TTS_Mobile || {};
         $('#tts-mobile-root').addClass('minimized');
         $('#tts-mobile-trigger').fadeIn();
         STATE.isOpen = false;
-        // 关闭时其实也可以不销毁内容，留给下次 reset
     }
 
 })(window.TTS_Mobile);

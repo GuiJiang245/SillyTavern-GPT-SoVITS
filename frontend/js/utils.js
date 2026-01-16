@@ -91,5 +91,67 @@ window.TTS_Utils = window.TTS_Utils || {};
         $el.on('touchmove', e => { if(isDragging) { if(e.cancelable) e.preventDefault(); const touch = e.originalEvent.touches[0]; move(touch.clientX, touch.clientY); }});
         $el.on('touchend', () => { if(isDragging) end(); });
     };
+
+    scope.generateFingerprint = function(text) {
+        const cleanText = cleanContent(text);
+        const len = cleanText.length;
+        if (len === 0) return "empty";
+        if (len <= 30) {
+            return `short_${len}_${cleanText}`;
+        }
+        const start = cleanText.substring(0, 10);
+        const end = cleanText.substring(len - 10);
+        const midIndex = Math.floor(len / 2) - 5;
+        const mid = cleanText.substring(midIndex, midIndex + 10);
+        return `v3_${len}_${start}_${mid}_${end}`;
+    };
+
+    scope.extractTextFromNode = function($node) {
+        const $mes = $node.hasClass('mes') ? $node : $node.closest('.mes');
+
+        if ($mes.length) {
+            const $textDiv = $mes.find('.mes_text');
+            if ($textDiv.length) {
+                return $textDiv.text();
+            }
+            return $mes.text();
+        }
+
+        return $node.text() || "";
+    };
+    function cleanContent(text) {
+        if (!text) return "";
+        let str = String(text);
+        str = str.replace(/<think>[\s\S]*?<\/think>/gi, "");
+        str = str.replace(/\s+/g, "");
+        return str;
+    }
+
+    scope.getFingerprint = function($element) {
+        const text = scope.extractTextFromNode($element);
+        return scope.generateFingerprint(text);
+    };
+
+
+    scope.getCurrentContextFingerprints = function() {
+        const fps = [];
+        $('#chat .mes').each(function() {
+            const $this = $(this);
+            if ($this.attr('is_system') === 'true') return;
+            const text = scope.extractTextFromNode($this);
+            const fp = scope.generateFingerprint(text);
+            if (fp !== 'empty') fps.push(fp);
+        });
+        return fps;
+    };
+    scope.getCurrentChatBranch = function() {
+        try {
+            if (window.SillyTavern && window.SillyTavern.getContext) {
+                const ctx = window.SillyTavern.getContext();
+                if (ctx.chatId) return ctx.chatId.replace(/\.(jsonl|json)$/i, "");
+            }
+        } catch (e) { console.error(e); }
+        return "default";
+    };
     console.log("🟢 [2] TTS_Utils.js 执行完毕，对象已挂载:", window.TTS_Utils);
 })(window.TTS_Utils);

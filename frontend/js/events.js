@@ -287,44 +287,52 @@
                 Scheduler.run();
             }
 
-            // 2. 收藏 (Fav) - 带上下文
+
             $(document).on('click', '#tts-action-fav', async () => {
                 const $btn = $('#tts-bubble-menu').data('target');
                 $('#tts-bubble-menu').fadeOut(100);
                 if (!$btn) return;
 
-                // --- 核心：上下文采集 ---
-                // 假设气泡结构是 .mes (SillyTavern 标准) 或类似结构
-                // 我们往上找最近的 3 条消息
+                const serverFilename = $btn.attr('data-server-filename');
+                if (!serverFilename) {
+                    alert("❌ 无法收藏：未找到源文件名（可能是旧缓存）。");
+                    return;
+                }
+
+                const msgFingerprint = window.TTS_Utils.getFingerprint($btn);
+                const branchId = window.TTS_Utils.getCurrentChatBranch();
+
+                // --- 上下文采集 (保持不变) ---
                 let context = [];
-                let $msgContainer = $btn.closest('.mes'); // 找到当前气泡容器
+                let $msgContainer = $btn.closest('.mes');
                 if ($msgContainer.length) {
-                    // 拿到之前的兄弟元素
                     let $prev = $msgContainer.prevAll('.mes').slice(0, 3);
                     $($prev.get().reverse()).each((i, el) => {
-                        // 提取文本，去掉名字等杂质
                         let text = $(el).find('.mes_text').text() || $(el).text();
-                        context.push(text.substring(0, 100) + "..."); // 截断一下防止太长
+                        context.push(text.substring(0, 100) + "...");
                     });
                 }
-                // -----------------------
 
+                // --- 构建请求数据 ---
                 const favItem = {
                     char_name: $btn.data('voice-name') || "Unknown",
                     text: $btn.data('text'),
+                    filename: serverFilename,
                     audio_url: $btn.attr('data-audio-url'),
-                    context: context // 加入采集到的上下文
+                    fingerprint: msgFingerprint,
+                    chat_branch: branchId,
+                    context: context
                 };
+
                 try {
                     await window.TTS_API.addFavorite(favItem);
-
-                    // 提示成功
                     if(window.TTS_Utils && window.TTS_Utils.showNotification) {
-                        window.TTS_Utils.showNotification("❤️ 已永久收藏", "success");
+                        window.TTS_Utils.showNotification("❤️ 已收藏到分支: " + branchId, "success");
                     } else {
-                        alert("❤️ 已保存到服务端收藏夹");
+                        alert("❤️ 收藏成功！");
                     }
                 } catch(e) {
+                    console.error(e);
                     alert("收藏失败: " + e.message);
                 }
             });
