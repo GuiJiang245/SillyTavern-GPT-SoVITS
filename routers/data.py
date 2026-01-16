@@ -211,11 +211,7 @@ def delete_favorite(req: DeleteFavRequest):
     return {"status": "success"}
 @router.post("/get_matched_favorites")
 def get_matched_favorites(req: MatchRequest):
-    all_favs = _load_favs()
-    if req.char_name:
-        target_favs = [f for f in all_favs if f.get('char_name') == req.char_name]
-    else:
-        target_favs = all_favs
+    target_favs = _load_favs()
     current_fp_set = set(req.fingerprints)
 
     result_current = []
