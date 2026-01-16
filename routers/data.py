@@ -11,6 +11,9 @@ import uuid
 from datetime import datetime
 from pydantic import BaseModel
 from typing import List, Optional, Dict
+from database import DatabaseManager
+
+db = DatabaseManager()
 
 router = APIRouter()
 
@@ -31,8 +34,7 @@ class MatchRequest(BaseModel):
     char_name: str
     fingerprints: List[str]
     chat_branch: Optional[str] = None
-# 定义收藏文件路径
-FAVORITES_FILE = "data/favorites.json"
+# 定义收藏文件路径 (Legacy JSON path removed)
 
 @router.get("/get_data")
 def get_data():
@@ -131,27 +133,19 @@ def save_style(req: StyleRequest):
 
     return {"status": "success", "current_style": req.style}
 
-def _load_favs():
-    if not os.path.exists(FAVORITES_FILE):
-        return []
-    return load_json(FAVORITES_FILE)
-
 @router.get("/get_favorites")
 def get_favorites():
-    return {"favorites": _load_favs()}
+    return {"favorites": db.get_all_favorites()}
 
     # 定义目录常量
 CACHE_DIR = "Cache"
 FAV_AUDIO_DIR = "data/favorites_audio"
 @router.post("/add_favorite")
 def add_favorite(item: FavoriteItem):
-    favs = _load_favs()
-    # 容错处理：防止 json 格式不对
-    if isinstance(favs, dict):
-        if "favorites" in favs and isinstance(favs["favorites"], list):
-            favs = favs["favorites"]
-        else:
-            favs = []
+@router.post("/add_favorite")
+def add_favorite(item: FavoriteItem):
+    # favs loading removed, using DB
+    pass
 
     new_entry = item.dict()
     new_entry["id"] = str(uuid.uuid4())
@@ -180,13 +174,11 @@ def add_favorite(item: FavoriteItem):
         else:
             print(f"⚠️ [收藏] 源文件 {source_path} 未找到，仅保存文本记录。")
 
-    favs.insert(0, new_entry)
-    save_json(FAVORITES_FILE, favs)
+    db.add_favorite(new_entry)
     return {"status": "success", "id": new_entry["id"]}
 @router.post("/delete_favorite")
 def delete_favorite(req: DeleteFavRequest):
-    favs = _load_favs()
-    target_fav = next((f for f in favs if f["id"] == req.id), None)
+    target_fav = db.get_favorite(req.id)
 
     if target_fav:
         filename_to_del = target_fav.get("relative_path")
@@ -205,38 +197,14 @@ def delete_favorite(req: DeleteFavRequest):
                     print(f"⚠️ [删除] 文件删除失败: {e}")
             else:
                 print(f"🚫 [安全拦截] 试图删除非收藏目录文件或文件不存在: {abs_target_path}")
-    new_favs = [f for f in favs if f["id"] != req.id]
-    save_json(FAVORITES_FILE, new_favs)
+        
+        db.delete_favorite(req.id)
 
     return {"status": "success"}
 @router.post("/get_matched_favorites")
 def get_matched_favorites(req: MatchRequest):
-    target_favs = _load_favs()
-    current_fp_set = set(req.fingerprints)
-
-    result_current = []
-    result_others = []
-
-    for fav in target_favs:
-        is_match = False
-        fav_fp = fav.get('fingerprint')
-        if fav_fp and fav_fp in current_fp_set:
-            is_match = True
-        elif req.chat_branch and fav.get('chat_branch') == req.chat_branch:
-            is_match = True
-
-        # 3. 归类
-        fav['is_current'] = is_match
-        if is_match:
-            result_current.append(fav)
-        else:
-            result_others.append(fav)
-
+    result_data = db.get_matched_favorites(req.fingerprints, req.chat_branch)
     return {
         "status": "success",
-        "data": {
-            "current": result_current,
-            "others": result_others,
-            "total_count": len(target_favs)
-        }
+        "data": result_data
     }
