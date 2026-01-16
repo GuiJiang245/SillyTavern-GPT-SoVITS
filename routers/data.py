@@ -27,6 +27,7 @@ class FavoriteItem(BaseModel):
     filename: Optional[str] = None
     chat_branch: Optional[str] = "Unknown"
     fingerprint: Optional[str] = ""
+    emotion: Optional[str] = ""
 
 class DeleteFavRequest(BaseModel):
     id: str

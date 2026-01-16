@@ -39,7 +39,8 @@ class DatabaseManager:
                 chat_branch TEXT,
                 fingerprint TEXT,
                 created_at TEXT,
-                relative_path TEXT
+                relative_path TEXT,
+                emotion TEXT
             )
         ''')
         conn.commit()
@@ -57,8 +58,8 @@ class DatabaseManager:
             cursor.execute('''
                 INSERT INTO favorites (
                     id, text, audio_url, char_name, context, tags, 
-                    filename, chat_branch, fingerprint, created_at, relative_path
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    filename, chat_branch, fingerprint, created_at, relative_path, emotion
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 data.get("id"),
                 data.get("text"),
@@ -70,7 +71,8 @@ class DatabaseManager:
                 data.get("chat_branch", "Unknown"),
                 data.get("fingerprint", ""),
                 data.get("created_at"),
-                data.get("relative_path")
+                data.get("relative_path"),
+                data.get("emotion", "")
             ))
             conn.commit()
         finally:

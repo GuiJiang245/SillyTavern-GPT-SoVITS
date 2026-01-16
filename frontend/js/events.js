@@ -340,7 +340,8 @@
                     audio_url: $btn.attr('data-audio-url'),
                     fingerprint: msgFingerprint,
                     chat_branch: branchId,
-                    context: context
+                    context: context,
+                    emotion: $btn.data('voice-emotion') || $btn.attr('data-voice-emotion') || ""
                 };
 
                 try {
