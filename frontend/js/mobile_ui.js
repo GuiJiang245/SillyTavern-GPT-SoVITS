@@ -300,34 +300,35 @@ window.TTS_Mobile = window.TTS_Mobile || {};
                 }
             }
         },
-        'history': {
-            name: '历史记录',
-            icon: '🕒',
-            bg: '#2563eb',
-            render: (container) => {
-                container.empty();
-                // 🟢 [修复] 加上导航栏
-                container.append(createNavbar("生成记录"));
+        // 🔴 [临时注释] 后续再处理
+        // 'history': {
+        //     name: '历史记录',
+        //     icon: '🕒',
+        //     bg: '#2563eb',
+        //     render: (container) => {
+        //         container.empty();
+        //         // 🟢 [修复] 加上导航栏
+        //         container.append(createNavbar("生成记录"));
 
-                const $content = $('<div style="padding:20px; flex:1; overflow-y:auto;"></div>');
-                $content.html(`
-                    <div style="text-align:center; color:#888; margin-top:50px;">
-                        🚧 开发中<br>这里将显示最近生成的50条语音
-                    </div>
-                `);
-                container.append($content);
-            }
-        },
-        'phone': {
-            name: '电话',
-            icon: '📞',
-            bg: '#10b981',
-            render: (container) => {
-                container.empty();
-                container.append(createNavbar("拨号键盘"));
-                container.append(`<div style="padding:20px; text-align:center; flex:1; display:flex; align-items:center; justify-content:center;">拨号盘界面<br>(未来扩展)</div>`);
-            }
-        }
+        //         const $content = $('<div style="padding:20px; flex:1; overflow-y:auto;"></div>');
+        //         $content.html(`
+        //             <div style="text-align:center; color:#888; margin-top:50px;">
+        //                 🚧 开发中<br>这里将显示最近生成的50条语音
+        //             </div>
+        //         `);
+        //         container.append($content);
+        //     }
+        // },
+        // 'phone': {
+        //     name: '电话',
+        //     icon: '📞',
+        //     bg: '#10b981',
+        //     render: (container) => {
+        //         container.empty();
+        //         container.append(createNavbar("拨号键盘"));
+        //         container.append(`<div style="padding:20px; text-align:center; flex:1; display:flex; align-items:center; justify-content:center;">拨号盘界面<br>(未来扩展)</div>`);
+        //     }
+        // }
     };
 
     scope.init = function () {
