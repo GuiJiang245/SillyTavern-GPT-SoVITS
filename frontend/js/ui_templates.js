@@ -73,6 +73,8 @@ window.TTS_UI.Templates = (function () {
                                     <div class="option-item" data-value="holo">🛸 星舰·光环</div>
                                     <div class="option-item" data-value="scroll">📜 羊皮·史诗</div>
                                     <div class="option-item" data-value="steampunk">⚙️ 蒸汽·机械</div>
+                                    <div class="option-item" data-value="tactical">🎯 战术·指令</div>
+                                    <div class="option-item" data-value="obsidian">🖤 黑曜石·极夜</div>
                                     <div class="option-item" data-value="classic">📼 旧日·回溯</div>
                                 </div>
                             </div>
