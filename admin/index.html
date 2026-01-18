@@ -107,6 +107,8 @@
                         <select id="audio-model-select" class="select" onchange="loadAudios()">
                             <option value="">选择模型...</option>
                         </select>
+                        <button class="btn btn-secondary" onclick="showBatchEmotionDialogFromAudios()"
+                            id="batch-emotion-btn" disabled>🏷️ 批量修改情感</button>
                         <button class="btn btn-primary" onclick="showUploadDialog()" id="upload-btn" disabled>⬆️
                             上传音频</button>
                     </div>
