@@ -228,8 +228,30 @@ class VersionManager:
                 result['error'] = '无法获取当前分支信息'
                 return result
             
+            
             if progress_callback:
                 progress_callback(2, 5, f'检查仓库状态 ({current_branch})...')
+            
+            # 先尝试清理应该被 gitignore 但仍在 Git 跟踪中的文件
+            # 这样可以避免老用户因为之前提交了 data/ 等文件而无法更新
+            try:
+                # 移除 Git 缓存中应该被忽略的文件,但保留工作区文件
+                subprocess.run(
+                    ['git', 'rm', '-r', '--cached', 'data/'],
+                    capture_output=True,
+                    timeout=10,
+                    cwd=self.base_dir
+                )
+                # 如果成功移除,自动提交这个清理操作
+                subprocess.run(
+                    ['git', 'commit', '-m', 'chore: 清理不应跟踪的用户数据文件'],
+                    capture_output=True,
+                    timeout=10,
+                    cwd=self.base_dir
+                )
+            except:
+                # 如果清理失败(比如文件本来就不在跟踪中),忽略错误继续
+                pass
             
             # 检查是否有未提交的更改
             status_result = subprocess.run(
