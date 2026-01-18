@@ -84,6 +84,41 @@
                     </div>
 
 
+                    <!-- 版本更新卡片 -->
+                    <div class="card" id="version-card">
+                        <div class="card-header">
+                            <h3>🔄 版本更新</h3>
+                            <span class="status-badge" id="version-status">检测中...</span>
+                            <span class="update-badge" id="update-badge" style="display: none;">●</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="info-item">
+                                <span class="label">当前版本:</span>
+                                <span class="value" id="current-version">-</span>
+                            </div>
+                            <div class="info-item" id="latest-version-info" style="display: none;">
+                                <span class="label">最新版本:</span>
+                                <span class="value" id="latest-version">-</span>
+                            </div>
+                            <div id="git-repo-notice"
+                                style="display: none; margin-top: 0.5rem; color: #f59e0b; font-size: 0.875rem;">
+                                ⚠️ 检测到 Git 仓库,请使用 git pull 更新
+                            </div>
+                            <div id="update-actions" style="display: none; margin-top: 1rem;">
+                                <button class="btn btn-primary" onclick="performUpdate()" id="update-btn">⬇️
+                                    立即更新</button>
+                            </div>
+                            <div id="update-progress" style="display: none; margin-top: 1rem;">
+                                <div class="progress-bar">
+                                    <div id="version-progress-bar" class="progress-fill"></div>
+                                </div>
+                                <div class="progress-text">
+                                    <span id="version-progress-text">更新中...</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
             </section>
 

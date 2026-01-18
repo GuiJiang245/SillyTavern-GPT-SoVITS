@@ -713,3 +713,41 @@ body {
     cursor: not-allowed;
     pointer-events: none;
 }
+
+/* ==================== 版本更新小红点 ==================== */
+.update-badge {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    background: var(--error);
+    border-radius: 50%;
+    margin-left: 0.5rem;
+    animation: pulse 2s ease-in-out infinite;
+    box-shadow: 0 0 8px var(--error);
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    50% {
+        opacity: 0.6;
+        transform: scale(1.2);
+    }
+}
+
+/* 版本卡片特殊样式 */
+#version-card .card-header {
+    position: relative;
+}
+
+#version-card .update-badge {
+    position: absolute;
+    right: 1.25rem;
+    top: 50%;
+    transform: translateY(-50%);
+}

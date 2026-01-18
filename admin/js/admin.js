@@ -63,6 +63,9 @@ async function loadDashboard() {
             }
             document.getElementById('sovits-url').textContent = sovits.url;
         }
+
+        // 检查版本更新
+        checkVersion();
     } catch (error) {
         console.error('加载仪表盘失败:', error);
         showNotification('加载仪表盘失败', 'error');
@@ -618,3 +621,129 @@ style.textContent = `
     }
 `;
 document.head.appendChild(style);
+
+// ==================== 版本管理 ====================
+async function checkVersion() {
+    const statusEl = document.getElementById('version-status');
+    const currentVersionEl = document.getElementById('current-version');
+    const latestVersionEl = document.getElementById('latest-version');
+    const latestVersionInfo = document.getElementById('latest-version-info');
+    const updateBadge = document.getElementById('update-badge');
+    const updateActions = document.getElementById('update-actions');
+    const gitRepoNotice = document.getElementById('git-repo-notice');
+
+    try {
+        const response = await fetch(`${API_BASE}/version/check`);
+        const data = await response.json();
+
+        if (!data.success) {
+            statusEl.textContent = '检测失败';
+            statusEl.className = 'status-badge status-error';
+            currentVersionEl.textContent = data.error || '未知错误';
+            return;
+        }
+
+        // 显示当前版本
+        currentVersionEl.textContent = data.current_version || '-';
+
+        // 如果是 Git 仓库
+        if (data.is_git_repo) {
+            statusEl.textContent = 'Git 仓库';
+            statusEl.className = 'status-badge status-success';
+            // 修改提示文案,说明可以一键更新
+            gitRepoNotice.textContent = '💡 检测到 Git 仓库,点击更新将自动执行 git pull';
+            gitRepoNotice.style.display = 'block';
+            // Git 仓库也显示更新按钮
+            updateActions.style.display = 'block';
+            return;
+        }
+
+        // 显示最新版本
+        if (data.latest_version) {
+            latestVersionEl.textContent = data.latest_version;
+            latestVersionInfo.style.display = 'flex';
+        }
+
+        // 检查是否有更新
+        if (data.has_update) {
+            statusEl.textContent = '有新版本';
+            statusEl.className = 'status-badge status-warning';
+            updateBadge.style.display = 'inline-block';
+            updateActions.style.display = 'block';
+        } else {
+            statusEl.textContent = '已是最新';
+            statusEl.className = 'status-badge status-success';
+            updateBadge.style.display = 'none';
+            updateActions.style.display = 'none';
+        }
+
+    } catch (error) {
+        console.error('检查版本失败:', error);
+        statusEl.textContent = '检测失败';
+        statusEl.className = 'status-badge status-error';
+        currentVersionEl.textContent = '网络错误';
+    }
+}
+
+async function performUpdate() {
+    const updateBtn = document.getElementById('update-btn');
+    const updateProgress = document.getElementById('update-progress');
+    const progressBar = document.getElementById('version-progress-bar');
+    const progressText = document.getElementById('version-progress-text');
+    const updateActions = document.getElementById('update-actions');
+
+    if (!confirm('确定要更新到最新版本吗?\n\n更新过程中请勿关闭浏览器或服务器。\n您的配置和数据将被保留。')) {
+        return;
+    }
+
+    try {
+        // 禁用按钮,显示进度
+        updateBtn.disabled = true;
+        updateActions.style.display = 'none';
+        updateProgress.style.display = 'block';
+        progressBar.style.width = '0%';
+        progressText.textContent = '正在准备更新...';
+
+        // 模拟进度(因为后端更新是同步的)
+        let progress = 0;
+        const progressInterval = setInterval(() => {
+            progress += 5;
+            if (progress <= 90) {
+                progressBar.style.width = progress + '%';
+            }
+        }, 500);
+
+        // 调用更新 API
+        const response = await fetch(`${API_BASE}/version/update`, {
+            method: 'POST'
+        });
+
+        clearInterval(progressInterval);
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            progressBar.style.width = '100%';
+            progressText.textContent = '更新完成!';
+
+            showNotification('更新成功!即将重启服务...', 'success');
+
+            // 提示用户重启服务
+            setTimeout(() => {
+                alert('更新完成!\n\n请手动重启服务以应用更新:\n1. 关闭当前服务(Ctrl+C)\n2. 重新运行 start.bat');
+            }, 1000);
+
+        } else {
+            throw new Error(data.error || data.detail || '更新失败');
+        }
+
+    } catch (error) {
+        console.error('更新失败:', error);
+        showNotification(`更新失败: ${error.message}`, 'error');
+
+        // 重置UI
+        updateBtn.disabled = false;
+        updateProgress.style.display = 'none';
+        updateActions.style.display = 'block';
+    }
+}

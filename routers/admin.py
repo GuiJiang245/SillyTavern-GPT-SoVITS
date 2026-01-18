@@ -8,6 +8,7 @@ from config import init_settings, save_json, SETTINGS_FILE
 
 from utils_admin.service_manager import ServiceManager
 from utils_admin.model_manager import ModelManager
+from utils_admin.version_manager import VersionManager
 
 router = APIRouter()
 
@@ -257,3 +258,53 @@ async def stream_audio(model_name: str, relative_path: str):
         media_type="audio/wav",
         headers={"Accept-Ranges": "bytes"}
     )
+
+# ==================== 版本管理 ====================
+
+@router.get("/version/check")
+async def check_version():
+    """检查是否有可用更新"""
+    try:
+        manager = VersionManager()
+        result = manager.check_for_updates()
+        return result
+    except Exception as e:
+        return {
+            "success": False,
+            "error": f"检查更新失败: {str(e)}"
+        }
+
+@router.post("/version/update")
+async def update_version():
+    """执行版本更新"""
+    try:
+        manager = VersionManager()
+        
+        # 先检查是否有更新
+        check_result = manager.check_for_updates()
+        if not check_result.get('success'):
+            raise HTTPException(status_code=400, detail=check_result.get('error', '检查更新失败'))
+        
+        if check_result.get('is_git_repo'):
+            raise HTTPException(status_code=400, detail='这是一个 Git 仓库,请使用 git pull 更新')
+        
+        if not check_result.get('has_update'):
+            return {
+                "success": True,
+                "message": "当前已是最新版本",
+                "no_update": True
+            }
+        
+        # 执行更新
+        result = manager.download_and_update()
+        
+        if not result.get('success'):
+            raise HTTPException(status_code=500, detail=result.get('error', '更新失败'))
+        
+        return result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"更新失败: {str(e)}")
+
