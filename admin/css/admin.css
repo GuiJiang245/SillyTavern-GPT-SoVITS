@@ -463,30 +463,6 @@ body {
     font-size: 0.75rem;
 }
 
-/* ==================== 依赖表格 ==================== */
-.deps-table {
-    width: 100%;
-    border-collapse: collapse;
-}
-
-.deps-table th,
-.deps-table td {
-    padding: 0.75rem;
-    text-align: left;
-    border-bottom: 1px solid var(--border);
-}
-
-.deps-table th {
-    background: var(--bg-tertiary);
-    font-weight: 600;
-    color: var(--text-secondary);
-    text-transform: uppercase;
-    font-size: 0.75rem;
-}
-
-.deps-table td {
-    color: var(--text-primary);
-}
 
 /* ==================== 对话框 ==================== */
 .dialog-overlay {
@@ -571,17 +547,6 @@ body {
     font-size: 1.125rem;
 }
 
-.log-output {
-    background: var(--bg-primary);
-    padding: 1rem;
-    border-radius: 0.5rem;
-    font-family: 'Consolas', 'Monaco', monospace;
-    font-size: 0.75rem;
-    color: var(--text-secondary);
-    max-height: 400px;
-    overflow-y: auto;
-    white-space: pre-wrap;
-}
 
 .controls {
     display: flex;

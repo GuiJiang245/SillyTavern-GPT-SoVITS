@@ -18,19 +18,6 @@ async def get_system_status():
     """获取系统整体状态"""
     return ServiceManager.get_system_status()
 
-@router.get("/dependencies/check")
-async def check_dependencies():
-    """检查依赖包状态"""
-    return ServiceManager.check_dependencies()
-
-@router.post("/dependencies/install")
-async def install_dependencies():
-    """安装依赖包"""
-    result = ServiceManager.install_dependencies()
-    if not result["success"]:
-        raise HTTPException(status_code=500, detail=result.get("error", "安装失败"))
-    return result
-
 # ==================== 模型管理 ====================
 
 @router.get("/models")

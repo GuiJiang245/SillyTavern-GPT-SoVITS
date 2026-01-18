@@ -21,7 +21,7 @@ class ServiceManager:
             return False
     
     @staticmethod
-    def check_sovits_service(host: str = "http://127.0.0.1:9880") -> Dict[str, Any]:
+    def check_sovits_service(host: str) -> Dict[str, Any]:
         """检查 GPT-SoVITS 服务状态"""
         try:
             response = requests.get(f"{host}/", timeout=2)
@@ -128,9 +128,10 @@ class ServiceManager:
     @staticmethod
     def get_system_status() -> Dict[str, Any]:
         """获取系统整体状态"""
+        # 导入配置函数
+        from config import get_sovits_host
+        
         return {
-            "python": ServiceManager.check_python_env(),
-            "dependencies": ServiceManager.check_dependencies(),
-            "sovits_service": ServiceManager.check_sovits_service(),
+            "sovits_service": ServiceManager.check_sovits_service(get_sovits_host()),
             "backend_port": ServiceManager.check_port("127.0.0.1", 3000),
         }

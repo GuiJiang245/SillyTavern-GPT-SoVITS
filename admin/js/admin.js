@@ -20,7 +20,6 @@ document.addEventListener('DOMContentLoaded', () => {
     loadDashboard();
     loadModels();
     loadSettings();
-    loadDependencies();
 });
 
 function switchPage(pageName) {
@@ -48,14 +47,6 @@ async function loadDashboard() {
         const response = await fetch(`${API_BASE}/status`);
         const data = await response.json();
 
-        // Python 环境
-        if (data.python) {
-            document.getElementById('python-status').textContent = '正常';
-            document.getElementById('python-status').className = 'status-badge status-success';
-            document.getElementById('python-version').textContent = data.python.version.split(' ')[0];
-            document.getElementById('python-path').textContent = data.python.executable;
-        }
-
         // GPT-SoVITS 服务
         if (data.sovits_service) {
             const sovits = data.sovits_service;
@@ -72,37 +63,10 @@ async function loadDashboard() {
             }
             document.getElementById('sovits-url').textContent = sovits.url;
         }
-
-        // 依赖包状态
-        if (data.dependencies) {
-            updateDepsStatus(data.dependencies);
-        }
     } catch (error) {
         console.error('加载仪表盘失败:', error);
         showNotification('加载仪表盘失败', 'error');
     }
-}
-
-function updateDepsStatus(deps) {
-    const allInstalled = Object.values(deps).every(d => d.installed);
-    const statusEl = document.getElementById('deps-status');
-    const listEl = document.getElementById('deps-list');
-
-    if (allInstalled) {
-        statusEl.textContent = '完整';
-        statusEl.className = 'status-badge status-success';
-    } else {
-        statusEl.textContent = '缺失';
-        statusEl.className = 'status-badge status-warning';
-    }
-
-    // 显示依赖列表
-    listEl.innerHTML = Object.entries(deps).map(([name, info]) => `
-        <div class="info-item">
-            <span class="label">${name}</span>
-            <span class="value">${info.installed ? '✓ ' + info.version : '✗ 未安装'}</span>
-        </div>
-    `).join('');
 }
 
 function refreshStatus() {
@@ -330,6 +294,7 @@ async function loadSettings() {
 
         document.getElementById('setting-base-dir').value = settings.base_dir || '';
         document.getElementById('setting-cache-dir').value = settings.cache_dir || '';
+        document.getElementById('setting-sovits-host').value = settings.sovits_host || 'http://127.0.0.1:9880';
         document.getElementById('setting-default-lang').value = settings.default_lang || 'Chinese';
         document.getElementById('setting-bubble-style').value = settings.bubble_style || 'default';
         document.getElementById('setting-auto-generate').checked = settings.auto_generate || false;
@@ -343,6 +308,7 @@ async function saveSettings() {
     const settings = {
         base_dir: document.getElementById('setting-base-dir').value.trim(),
         cache_dir: document.getElementById('setting-cache-dir').value.trim(),
+        sovits_host: document.getElementById('setting-sovits-host').value.trim(),
         default_lang: document.getElementById('setting-default-lang').value,
         bubble_style: document.getElementById('setting-bubble-style').value,
         auto_generate: document.getElementById('setting-auto-generate').checked,
@@ -366,64 +332,6 @@ async function saveSettings() {
     } catch (error) {
         console.error('保存配置失败:', error);
         showNotification('保存失败', 'error');
-    }
-}
-
-// ==================== 依赖管理 ====================
-async function loadDependencies() {
-    try {
-        const response = await fetch(`${API_BASE}/dependencies/check`);
-        const deps = await response.json();
-
-        const tbody = document.querySelector('#deps-table tbody');
-        tbody.innerHTML = Object.entries(deps).map(([name, info]) => `
-            <tr>
-                <td>${name}</td>
-                <td>
-                    <span class="status-badge ${info.installed ? 'status-success' : 'status-error'}">
-                        ${info.installed ? '已安装' : '未安装'}
-                    </span>
-                </td>
-                <td>${info.version || '-'}</td>
-            </tr>
-        `).join('');
-    } catch (error) {
-        console.error('加载依赖失败:', error);
-    }
-}
-
-async function installDependencies() {
-    if (!confirm('确定要安装所有依赖包吗?这可能需要几分钟时间。')) {
-        return;
-    }
-
-    const outputDiv = document.getElementById('install-output');
-    const logPre = document.getElementById('install-log');
-
-    outputDiv.style.display = 'block';
-    logPre.textContent = '正在安装依赖包...\n';
-
-    try {
-        const response = await fetch(`${API_BASE}/dependencies/install`, {
-            method: 'POST'
-        });
-
-        const data = await response.json();
-
-        if (response.ok) {
-            logPre.textContent += '\n=== 安装成功 ===\n';
-            logPre.textContent += data.stdout || '';
-            showNotification('依赖安装成功', 'success');
-            loadDependencies();
-        } else {
-            logPre.textContent += '\n=== 安装失败 ===\n';
-            logPre.textContent += data.stderr || data.error || '';
-            showNotification('依赖安装失败', 'error');
-        }
-    } catch (error) {
-        console.error('安装依赖失败:', error);
-        logPre.textContent += '\n错误: ' + error.message;
-        showNotification('安装失败', 'error');
     }
 }
 
