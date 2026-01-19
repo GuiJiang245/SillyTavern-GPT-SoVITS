@@ -96,9 +96,24 @@
 
                 // 状态 A: 已生成 (Ready)
                 if ($btn.attr('data-status') === 'ready') {
-                    const audioUrl = $btn.attr('data-audio-url') || $btn.data('audio-url');
+                    const key = $btn.data('key') || Scheduler.getTaskKey(charName, $btn.data('text'));
 
+                    // 🔧 优先从内存缓存读取 (最可靠)
+                    let audioUrl = CACHE.audioMemory[key];
+
+                    // 🔧 回退到 DOM 属性
                     if (!audioUrl) {
+                        audioUrl = $btn.attr('data-audio-url') || $btn.data('audio-url');
+                    }
+
+                    // 🔧 添加调试日志
+                    if (!audioUrl) {
+                        console.error('[TTS] 音频 URL 丢失', {
+                            key: key,
+                            memoryCache: !!CACHE.audioMemory[key],
+                            domAttr: $btn.attr('data-audio-url'),
+                            domData: $btn.data('audio-url')
+                        });
                         $btn.attr('data-status', 'error').removeClass('playing');
                         alert("音频丢失，请刷新页面或点击重试");
                         return;
@@ -120,9 +135,6 @@
                         return; // 直接结束，不执行后续播放逻辑
                     }
                     // ========================================================
-
-                    // 获取 key (如果没有 data-key，尝试用 Scheduler 生成一个，兼容旧版)
-                    const key = $btn.data('key') || Scheduler.getTaskKey(charName, $btn.data('text'));
 
                     // 【重要修复】强制将 key 写入 DOM，确保 playAudio 能通过属性选择器找到它
                     $btn.attr('data-key', key);
@@ -376,7 +388,13 @@
 
                 const serverFilename = $btn.attr('data-server-filename');
                 if (!serverFilename) {
-                    alert("❌ 无法收藏：未找到源文件名（可能是旧缓存）。");
+                    // 🔧 更详细的错误提示
+                    console.warn('[TTS] 收藏失败: data-server-filename 缺失', {
+                        key: $btn.data('key'),
+                        audioUrl: $btn.attr('data-audio-url'),
+                        status: $btn.attr('data-status')
+                    });
+                    alert("❌ 无法收藏：未找到源文件名\n\n可能原因:\n1. 这是旧版本生成的音频\n2. 浏览器跨域限制\n\n建议: 点击"重Roll"重新生成后再收藏");
                     return;
                 }
 

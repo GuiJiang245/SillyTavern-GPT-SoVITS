@@ -136,13 +136,22 @@
                 const checkPromises = tasks.map(async (task) => {
                     if (CACHE.audioMemory[task.key]) return { task, cached: true };
                     const result = await this.checkCache(task, modelConfig);
-                    return { task, cached: result && result.cached === true };
+                    return {
+                        task,
+                        cached: result && result.cached === true,
+                        cachedFilename: result && result.filename  // 🔧 保留 filename
+                    };
                 });
 
                 const results = await Promise.all(checkPromises);
                 const tasksToGenerate = [];
 
                 for (const res of results) {
+                    // 🔧 将 cachedFilename 传递给 task
+                    if (res.cachedFilename) {
+                        res.task.cachedFilename = res.cachedFilename;
+                    }
+
                     if (res.cached) await this.processSingleTask(res.task, modelConfig);
                     else tasksToGenerate.push(res.task);
                 }
@@ -233,11 +242,20 @@
                     emotion: emotion  // 传递情绪
                 };
 
+                // 🔧 优先使用缓存的 filename (从 checkCache 获取)
+                if (task.cachedFilename) {
+                    $btn.attr('data-server-filename', task.cachedFilename);
+                    console.log(`[TTS] 使用缓存文件名: ${task.cachedFilename}`);
+                }
+
                 const { blob, filename } = await window.TTS_API.generateAudio(params);
-                if (filename) {
+
+                // 🔧 如果没有缓存的 filename,使用响应头中的 filename
+                if (!task.cachedFilename && filename) {
                     $btn.attr('data-server-filename', filename);
                     console.log(`[TTS] 文件名已记录: ${filename}`);
                 }
+
                 this.finishTask(key, URL.createObjectURL(blob));
                 this.updateStatus($btn, 'ready');
 
