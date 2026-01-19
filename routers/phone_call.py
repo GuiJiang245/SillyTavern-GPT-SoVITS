@@ -29,7 +29,7 @@ class ParseAndGenerateRequest(BaseModel):
     """解析并生成音频请求"""
     char_name: str
     llm_response: str
-    generate_audio: Optional[bool] = False  # 默认不生成音频,只解析
+    generate_audio: Optional[bool] = True  # 默认生成音频
 
 
 class LLMTestRequest(BaseModel):
@@ -143,6 +143,9 @@ async def parse_and_generate(req: ParseAndGenerateRequest):
             "total_segments": len(segments)
         }
         
+        # 调试日志
+        print(f"[ParseAndGenerate] generate_audio={req.generate_audio}, segments={len(segments)}")
+        
         # 如果需要生成音频,调用TTS服务
         if req.generate_audio and segments:
             print(f"[ParseAndGenerate] 开始生成音频...")
@@ -152,9 +155,11 @@ async def parse_and_generate(req: ParseAndGenerateRequest):
             audio_merge_config = phone_call_config.get("audio_merge", {})
             
             # 导入TTS相关模块
-            from routers.tts import TTSRequest, tts_proxy_v2
+            from phone_call_utils.tts_service import TTSService
             from phone_call_utils.audio_merger import AudioMerger
+            from config import get_sovits_host
             
+            tts_service = TTSService(get_sovits_host())
             audio_merger = AudioMerger()
             audio_bytes_list = []
             
@@ -168,26 +173,13 @@ async def parse_and_generate(req: ParseAndGenerateRequest):
                     print(f"[ParseAndGenerate] 警告: 未找到情绪 '{segment.emotion}' 的参考音频,跳过")
                     continue
                 
-                # 构建TTS请求
-                tts_request = TTSRequest(
-                    text=segment.text,
-                    text_lang=tts_config.get("text_lang", "zh"),
-                    ref_audio_path=ref_audio["path"],
-                    prompt_text=ref_audio["text"],
-                    prompt_lang=tts_config.get("prompt_lang", "zh"),
-                    emotion=segment.emotion,
-                    # 传递所有TTS高级参数
-                    **{k: v for k, v in tts_config.items() if k not in ["text_lang", "prompt_lang"]}
-                )
-                
-                # 调用tts_proxy_v2生成音频
+                # 生成音频 - 直接调用 TTSService
                 try:
-                    file_response = await tts_proxy_v2(tts_request)
-                    
-                    # 读取生成的音频文件
-                    with open(file_response.path, "rb") as f:
-                        audio_bytes = f.read()
-                    
+                    audio_bytes = await tts_service.generate_audio(
+                        segment=segment,
+                        ref_audio=ref_audio,
+                        tts_config=tts_config
+                    )
                     audio_bytes_list.append(audio_bytes)
                     print(f"[ParseAndGenerate] ✅ 片段 {i+1} 生成成功: {len(audio_bytes)} 字节")
                 except Exception as e:
@@ -202,9 +194,14 @@ async def parse_and_generate(req: ParseAndGenerateRequest):
                         audio_bytes_list,
                         audio_merge_config
                     )
-                    result["audio"] = merged_audio
+                    
+                    # 将音频字节数据转换为 base64 编码,以便 JSON 序列化
+                    import base64
+                    audio_base64 = base64.b64encode(merged_audio).decode('utf-8')
+                    
+                    result["audio"] = audio_base64
                     result["audio_format"] = audio_merge_config.get("output_format", "wav")
-                    print(f"[ParseAndGenerate] ✅ 音频合并完成: {len(merged_audio)} 字节")
+                    print(f"[ParseAndGenerate] ✅ 音频合并完成: {len(merged_audio)} 字节 (base64: {len(audio_base64)} 字符)")
                 except Exception as e:
                     print(f"[ParseAndGenerate] ❌ 合并音频失败 - {e}")
             else:
@@ -242,7 +239,7 @@ def _select_ref_audio(char_name: str, emotion: str) -> Optional[Dict]:
     
     model_folder = mappings[char_name]
     base_dir, _ = get_current_dirs()
-    ref_dir = os.path.join(base_dir, model_folder, "reference_audios")
+    ref_dir = os.path.join(base_dir, model_folder, "reference_audios", "Japanese", "emotions")
     
     if not os.path.exists(ref_dir):
         print(f"[_select_ref_audio] 错误: 参考音频目录不存在: {ref_dir}")

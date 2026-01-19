@@ -777,7 +777,7 @@ window.TTS_Mobile = window.TTS_Mobile || {};
                             body: JSON.stringify({
                                 char_name: charName,
                                 llm_response: llmResponse,
-                                generate_audio: false  // 暂时不生成音频
+                                generate_audio: true
                             })
                         });
 
@@ -819,37 +819,43 @@ window.TTS_Mobile = window.TTS_Mobile || {};
                             });
                         }
 
-                        // TODO: 如果有音频,显示播放按钮
-                        // if (result.audio) {
-                        //     const audioBlob = new Blob([new Uint8Array(atob(result.audio).split('').map(c => c.charCodeAt(0)))], {
-                        //         type: 'audio/wav'
-                        //     });
-                        //     const audioUrl = URL.createObjectURL(audioBlob);
+                        // 如果有音频,显示播放按钮
+                        if (result.audio) {
+                            // 将 base64 解码为二进制数据
+                            const binaryString = atob(result.audio);
+                            const bytes = new Uint8Array(binaryString.length);
+                            for (let i = 0; i < binaryString.length; i++) {
+                                bytes[i] = binaryString.charCodeAt(i);
+                            }
 
-                        //     html += `
-                        //         <div style="margin-top:15px; padding:15px; background:#f0f9ff; border-radius:8px;">
-                        //             <div style="font-size:13px; color:#0369a1; margin-bottom:10px;">
-                        //                 🎵 <strong>合成音频</strong>
-                        //             </div>
-                        //             <audio controls style="width:100%; margin-bottom:10px;" src="${audioUrl}"></audio>
-                        //             <button class="phone-download-audio" data-url="${audioUrl}" 
-                        //                 style="width:100%; padding:10px; background:#0ea5e9; color:#fff; border:none; border-radius:8px; cursor:pointer;">
-                        //                 ⬇️ 下载音频
-                        //             </button>
-                        //         </div>
-                        //     `;
-                        // }
+                            const audioBlob = new Blob([bytes], { type: 'audio/wav' });
+                            const audioUrl = URL.createObjectURL(audioBlob);
+
+                            html += `
+                                <div style="margin-top:15px; padding:15px; background:#f0f9ff; border-radius:8px;">
+                                    <div style="font-size:13px; color:#0369a1; margin-bottom:10px;">
+                                        🎵 <strong>合成音频</strong>
+                                    </div>
+                                    <audio controls style="width:100%; margin-bottom:10px;" src="${audioUrl}"></audio>
+                                    <button class="phone-download-audio" data-url="${audioUrl}" data-charname="${charName}"
+                                        style="width:100%; padding:10px; background:#0ea5e9; color:#fff; border:none; border-radius:8px; cursor:pointer;">
+                                        ⬇️ 下载音频
+                                    </button>
+                                </div>
+                            `;
+                        }
 
                         $resultContent.html(html);
 
                         // 绑定下载按钮
-                        // $('.phone-download-audio').click(function () {
-                        //     const url = $(this).data('url');
-                        //     const a = document.createElement('a');
-                        //     a.href = url;
-                        //     a.download = `${charName}_主动电话_${new Date().getTime()}.wav`;
-                        //     a.click();
-                        // });
+                        $('.phone-download-audio').click(function () {
+                            const url = $(this).data('url');
+                            const charname = $(this).data('charname');
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = `${charname}_主动电话_${new Date().getTime()}.wav`;
+                            a.click();
+                        });
 
                     } catch (error) {
                         console.error('[主动电话] 生成失败:', error);
