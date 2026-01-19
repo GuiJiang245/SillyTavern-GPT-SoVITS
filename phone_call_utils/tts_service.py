@@ -1,5 +1,5 @@
 import requests
-from typing import Dict
+from typing import Dict, Optional
 from phone_call_utils.response_parser import EmotionSegment
 
 
@@ -13,7 +13,8 @@ class TTSService:
         self,
         segment: EmotionSegment,
         ref_audio: Dict,
-        tts_config: Dict
+        tts_config: Dict,
+        previous_ref_audio: Optional[Dict] = None
     ) -> bytes:
         """
         为单个情绪片段生成音频
@@ -22,6 +23,8 @@ class TTSService:
             segment: 情绪片段
             ref_audio: 参考音频信息 {path, text}
             tts_config: TTS配置参数
+            previous_ref_audio: 上一个情绪的参考音频 {path, text} (可选)
+                               当情绪变化时,将上一个情绪的音频加入副音频进行音色融合
         
         Returns:
             音频字节数据
@@ -35,8 +38,20 @@ class TTSService:
             "ref_audio_path": ref_audio["path"],
             "prompt_text": ref_audio["text"],
             "prompt_lang": tts_config.get("prompt_lang", "zh"),
+            "text_split_method": tts_config.get("text_split_method", "cut4"),
             "streaming_mode": "false"  # 明确关闭流式
         }
+        
+        
+        # 如果提供了上一个情绪的参考音频,且配置允许,加入副音频列表进行音色融合
+        use_aux_ref = tts_config.get("use_aux_ref_audio", False)
+        if use_aux_ref and previous_ref_audio:
+            params["aux_ref_audio_paths"] = [previous_ref_audio["path"]]
+            print(f"[TTSService] ✅ 副参考音频已启用,加入副音频: {previous_ref_audio['path']}")
+        elif previous_ref_audio and not use_aux_ref:
+            print(f"[TTSService] ⚠️  副参考音频已禁用 (use_aux_ref_audio=false)")
+
+
         
         # 添加语速参数(如果指定)
         if segment.speed is not None:

@@ -174,6 +174,10 @@ async def parse_and_generate(req: ParseAndGenerateRequest):
             audio_merger = AudioMerger()
             audio_bytes_list = []
             
+            # 追踪上一个情绪和参考音频,用于情绪变化时的音色融合
+            previous_emotion = None
+            previous_ref_audio = None
+            
             for i, segment in enumerate(segments):
                 print(f"[ParseAndGenerate] 生成片段 {i+1}/{len(segments)}: [{segment.emotion}] {segment.text[:30]}...")
                 
@@ -184,18 +188,30 @@ async def parse_and_generate(req: ParseAndGenerateRequest):
                     print(f"[ParseAndGenerate] 警告: 未找到情绪 '{segment.emotion}' 的参考音频,跳过")
                     continue
                 
-                # 生成音频 - 直接调用 TTSService
+                # 检测情绪变化
+                emotion_changed = previous_emotion is not None and previous_emotion != segment.emotion
+                if emotion_changed:
+                    print(f"[ParseAndGenerate] 检测到情绪变化: {previous_emotion} -> {segment.emotion}")
+                
+                # 生成音频 - 如果情绪变化,传入上一个情绪的参考音频进行音色融合
                 try:
                     audio_bytes = await tts_service.generate_audio(
                         segment=segment,
                         ref_audio=ref_audio,
-                        tts_config=tts_config
+                        tts_config=tts_config,
+                        previous_ref_audio=previous_ref_audio if emotion_changed else None
                     )
                     audio_bytes_list.append(audio_bytes)
                     print(f"[ParseAndGenerate] ✅ 片段 {i+1} 生成成功: {len(audio_bytes)} 字节")
+                    
+                    # 更新上一个情绪和参考音频
+                    previous_emotion = segment.emotion
+                    previous_ref_audio = ref_audio
+                    
                 except Exception as e:
                     print(f"[ParseAndGenerate] ❌ 生成音频失败 - {e}")
                     continue
+
             
             
             # 合并音频
