@@ -3,7 +3,6 @@ export const TTS_Scheduler = {
     queue: [],
     isRunning: false,
 
-    // 更新按钮状�?UI
     updateStatus($btn, status) {
         $btn.attr('data-status', status).removeClass('playing loading error');
 
@@ -12,10 +11,9 @@ export const TTS_Scheduler = {
         }
         else if (status === 'error') {
             $btn.addClass('error');
-            $btn.css('opacity', ''); // 💡 修复1: 出错也恢复亮�?
+            $btn.css('opacity', '');
         }
 
-        // 💡 修复2: 成功后，必须把手动设置的灰色滤镜去掉�?
         if (status === 'ready') {
             $btn.css('opacity', '');
         }
@@ -25,7 +23,6 @@ export const TTS_Scheduler = {
         return `${charName}_${text}`;
     },
 
-    // 模型完整性校�?
     validateModel(modelName, config) {
         let missing = [];
         if (!config.gpt_path) missing.push("GPT权重");
@@ -33,19 +30,17 @@ export const TTS_Scheduler = {
 
         const langs = config.languages || {};
         if (Object.keys(langs).length === 0) {
-            missing.push("参考音�?reference_audios)");
+            missing.push("参考音频 (reference_audios)");
         }
 
         if (missing.length > 0) {
-            window.TTS_Utils.showNotification(`�?模型 "${modelName}" 缺失: ${missing.join(', ')}`, 'error');
+            window.TTS_Utils.showNotification(`模型 "${modelName}" 缺失: ${missing.join(', ')}`, 'error');
             return false;
         }
         return true;
     },
 
-    // 扫描页面并加入队�?
     scanAndSchedule() {
-        // 引用全局 State
         const settings = window.TTS_State.CACHE.settings;
         const mappings = window.TTS_State.CACHE.mappings;
 
@@ -64,11 +59,10 @@ export const TTS_Scheduler = {
     addToQueue($btn) {
         if ($btn.attr('data-status') !== 'waiting') return;
 
-        const CACHE = window.TTS_State.CACHE; // 引用快捷方式
+        const CACHE = window.TTS_State.CACHE;
         const charName = $btn.data('voice-name');
         const text = $btn.data('text');
         const key = this.getTaskKey(charName, text);
-        // 一级缓�?
         if (CACHE.audioMemory[key]) {
             $btn.data('audio-url', CACHE.audioMemory[key]);
             this.updateStatus($btn, 'ready');
@@ -127,7 +121,6 @@ export const TTS_Scheduler = {
                 continue;
             }
 
-            // 为每个任务预选参考音�?只选择一�?
             tasks.forEach(task => {
                 task.selectedRef = this.selectRefAudio(task, modelConfig);
             });
@@ -174,7 +167,7 @@ export const TTS_Scheduler = {
 
     async checkCache(task, modelConfig) {
         try {
-            const ref = task.selectedRef; // 直接使用预选的ref
+            const ref = task.selectedRef;
             if (!ref) return { cached: false };
 
             const params = {
@@ -183,7 +176,7 @@ export const TTS_Scheduler = {
                 ref_audio_path: ref.path,
                 prompt_text: ref.text,
                 prompt_lang: "zh",
-                emotion: task.emotion  // 传递情�?
+                emotion: task.emotion
             };
             return await window.TTS_API.checkCache(params);
         } catch { return { cached: false }; }
@@ -209,7 +202,7 @@ export const TTS_Scheduler = {
         const settings = window.TTS_State.CACHE.settings;
         const CACHE = window.TTS_State.CACHE;
 
-        const ref = task.selectedRef; // 直接使用预选的ref
+        const ref = task.selectedRef;
 
         if (!ref) {
             this.updateStatus($btn, 'error');
@@ -229,7 +222,7 @@ export const TTS_Scheduler = {
                 ref_audio_path: ref.path,
                 prompt_text: ref.text,
                 prompt_lang: promptLangCode,
-                emotion: emotion  // 传递情�?
+                emotion: emotion
             };
 
             const { blob, filename } = await window.TTS_API.generateAudio(params);
@@ -247,14 +240,12 @@ export const TTS_Scheduler = {
         }
     },
 
-    // 选择参考音�?只选择一�?避免重复随机)
     selectRefAudio(task, modelConfig) {
         const settings = window.TTS_State.CACHE.settings;
         const currentLang = settings.default_lang || 'default';
         let availableLangs = modelConfig.languages || {};
         let targetRefs = availableLangs[currentLang];
 
-        // 语言回退逻辑
         if (!targetRefs) {
             if (availableLangs['default']) targetRefs = availableLangs['default'];
             else {
@@ -265,17 +256,14 @@ export const TTS_Scheduler = {
 
         if (!targetRefs || targetRefs.length === 0) return null;
 
-        // 情绪匹配逻辑
         let matchedRefs = targetRefs.filter(r => r.emotion === task.emotion);
         if (matchedRefs.length === 0) matchedRefs = targetRefs.filter(r => r.emotion === 'default');
         if (matchedRefs.length === 0) matchedRefs = targetRefs;
 
-        // 随机选择一�?
         return matchedRefs[Math.floor(Math.random() * matchedRefs.length)];
     },
 
-    // 初始化方�?目前留空,可用于以后设置监听器)
     init() {
-        console.log("�?[Scheduler] 调度器已加载");
+        console.log("[Scheduler] 调度器已加载");
     }
 };

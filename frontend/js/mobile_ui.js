@@ -1,36 +1,31 @@
-﻿// 确保 window.TTS_Mobile 存在
-if (!window.TTS_Mobile) {
+﻿if (!window.TTS_Mobile) {
     window.TTS_Mobile = {};
 }
 
 export const TTS_Mobile = window.TTS_Mobile;
 
 (function (scope) {
-    // 状态管�?
     let STATE = {
         isOpen: false,
-        currentApp: null // null = 桌面
+        currentApp: null
     };
 
-    // 🟢 [新增] 通用导航栏生成器 (大家都能用，不用复制粘贴�?
     function createNavbar(title) {
         const $nav = $(`
             <div class="mobile-app-navbar">
                 <div class="nav-left" style="display:flex; align-items:center;">
-                    <span style="font-size:20px; margin-right:5px;">�?/span> 返回
+                    <span style="font-size:20px; margin-right:5px;">←</span> 返回
                 </div>
                 <div class="nav-title">${title}</div>
                 <div class="nav-right" style="width:40px;"></div>
             </div>
         `);
-        // 绑定返回逻辑：模拟点�?Home �?
         $nav.find('.nav-left').click(() => {
             $('#mobile-home-btn').click();
         });
         return $nav;
     }
 
-    // App 注册�?
     const APPS = {
         'settings': {
             name: '系统设置',
@@ -39,7 +34,7 @@ export const TTS_Mobile = window.TTS_Mobile;
             render: async (container) => {
                 container.html(`
                     <div style="display:flex; flex-direction:column; height:100%; align-items:center; justify-content:center; color:#888;">
-                        <div style="font-size:24px; margin-bottom:10px;">�?/div>
+                        <div style="font-size:24px; margin-bottom:10px;">⚙️</div>
                         <div>正在同步配置...</div>
                     </div>
                 `);
@@ -52,7 +47,7 @@ export const TTS_Mobile = window.TTS_Mobile;
                 } catch (e) { console.error("刷新数据失败", e); }
 
                 if (!window.TTS_UI || !window.TTS_UI.Templates || !window.TTS_UI.CTX) {
-                    container.html('<div style="padding:20px; text-align:center;">⚠️ 核心UI模块未就�?/div>');
+                    container.html('<div style="padding:20px; text-align:center;">⚠️ 核心UI模块未就绪</div>');
                     return;
                 }
 
@@ -84,7 +79,6 @@ export const TTS_Mobile = window.TTS_Mobile;
                 $panel.removeAttr('id');
 
                 const $navBar = createNavbar("系统配置");
-                // $navBar.find('.nav-left').html('<span style="font-size:20px; margin-right:5px;">�?/span> 设置');
 
                 container.empty();
                 container.append($navBar);
@@ -116,7 +110,6 @@ export const TTS_Mobile = window.TTS_Mobile;
                 $content.html('<div style="text-align:center; padding-top:20px; opacity:0.6;">正在智能匹配...</div>');
                 container.append($content);
 
-                // 2. 准备数据
                 const fingerprints = window.TTS_Utils ? window.TTS_Utils.getCurrentContextFingerprints() : [];
                 let charName = "";
                 try {
@@ -130,7 +123,7 @@ export const TTS_Mobile = window.TTS_Mobile;
                         }
                     }
                 } catch (e) {
-                    console.warn("获取角色名失�?", e);
+                    console.warn("获取角色名失败", e);
                 }
 
                 console.log("🔍 [手机收藏] 正在查询角色:", charName || "所有角色");
@@ -150,7 +143,6 @@ export const TTS_Mobile = window.TTS_Mobile;
                         const BARS_HTML = `<span class='sovits-voice-waves'><span class='sovits-voice-bar'></span><span class='sovits-voice-bar'></span><span class='sovits-voice-bar'></span></span>`;
 
                         return list.map(item => {
-                            // 🔥 修改3：Context 不再写死颜色，使�?class="fav-context-box"
                             let contextHtml = '';
                             if (item.context && item.context.length) {
                                 contextHtml = `<div class="fav-context-box" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
@@ -161,11 +153,8 @@ export const TTS_Mobile = window.TTS_Mobile;
 
                             let fullUrl = item.audio_url;
 
-                            // 🔧 关键修复:将静态文件路径转换为下载 API 端点
                             if (fullUrl && fullUrl.startsWith('/favorites/')) {
-                                // 提取文件�?
                                 const filename = fullUrl.replace('/favorites/', '');
-                                // 使用下载 API 端点 (带有正确�?CORS �?
                                 fullUrl = window.TTS_API.baseUrl + `/download_favorite/${filename}`;
                             } else if (fullUrl && fullUrl.startsWith('/') && window.TTS_API && window.TTS_API.baseUrl) {
                                 fullUrl = window.TTS_API.baseUrl + fullUrl;
@@ -174,8 +163,6 @@ export const TTS_Mobile = window.TTS_Mobile;
                             const d = Math.max(1, Math.ceil(cleanText.length * 0.25));
                             const bubbleWidth = Math.min(220, 60 + d * 10);
 
-                            // 🔥 修改4：彻底移�?cardStyle 变量，改�?class 控制样式
-                            // 增加 current-item 类来控制左边的竖条颜�?
                             const itemClass = item.is_current ? 'fav-item current-item' : 'fav-item';
 
                             return `
@@ -186,7 +173,7 @@ export const TTS_Mobile = window.TTS_Mobile;
                                         <span class="fav-item-date">${item.created_at ? item.created_at.split(' ')[0] : ''}</span>
                                     </div>
                                     ${contextHtml}
-                                    <div class="fav-text-content">�?{item.text}�?/div>
+                                    <div class="fav-text-content">“${item.text}”</div>
 
                                     <div style="display:flex; align-items:center; justify-content:space-between; margin-top:10px;">
                                         <div class="voice-bubble ready fav-play-bubble"
@@ -202,7 +189,7 @@ export const TTS_Mobile = window.TTS_Mobile;
                                         </div>
 
                                         <button class="fav-download-btn" style="background:transparent; border:none; color:#3b82f6; opacity:0.6; padding:5px 10px;">⬇️</button>
-                                        <button class="fav-del-btn" style="background:transparent; border:none; color:#dc2626; opacity:0.6; padding:5px 10px;">🗑�?/button>
+                                        <button class="fav-del-btn" style="background:transparent; border:none; color:#dc2626; opacity:0.6; padding:5px 10px;">🗑️</button>
                                     </div>
                                 </div>`;
                         }).join('');
@@ -224,7 +211,6 @@ export const TTS_Mobile = window.TTS_Mobile;
                         bindListEvents();
                     });
 
-                    // 🟢 [修改] bindListEvents
                     function bindListEvents() {
                         let currentAudio = null;
                         let $currentBubble = null;
@@ -234,7 +220,7 @@ export const TTS_Mobile = window.TTS_Mobile;
                             const $bubble = $(this);
                             let url = $bubble.data('url');
 
-                            // 停止当前
+
                             if ($bubble.hasClass('playing') && currentAudio) {
                                 currentAudio.pause();
                                 resetBubble($bubble);
@@ -242,13 +228,12 @@ export const TTS_Mobile = window.TTS_Mobile;
                                 return;
                             }
 
-                            // 停止其他
                             if (currentAudio) {
                                 currentAudio.pause();
                                 if ($currentBubble) resetBubble($currentBubble);
                             }
 
-                            // 🔧 关键修复:如果是服务器路径,转换�?Blob URL 并缓�?
+
                             if (!url.startsWith('blob:')) {
                                 try {
                                     console.log("🔄 转换服务器路径为 Blob URL:", url);
@@ -257,10 +242,9 @@ export const TTS_Mobile = window.TTS_Mobile;
                                     const blob = await response.blob();
                                     const blobUrl = URL.createObjectURL(blob);
 
-                                    // 缓存�?data-audio-url 属�?供下载使�?
                                     $bubble.attr('data-audio-url', blobUrl);
                                     url = blobUrl;
-                                    console.log("�?Blob URL 已缓�?", blobUrl);
+                                    console.log("✅ Blob URL 已缓存", blobUrl);
                                 } catch (err) {
                                     console.error("转换 Blob URL 失败:", err);
                                     alert("音频加载失败,请重试");
@@ -270,7 +254,7 @@ export const TTS_Mobile = window.TTS_Mobile;
 
                             console.log("▶️ 气泡播放:", url);
 
-                            // 播放状态：变为 playing (通常会有呼吸灯效�?
+
                             $bubble.addClass('playing');
 
                             const audio = new Audio(url);
@@ -288,13 +272,11 @@ export const TTS_Mobile = window.TTS_Mobile;
                             };
 
                             function resetBubble($b) {
-                                // 🌟 重点：移�?playing，强制加�?ready，并确保 data-status 正确
                                 $b.removeClass('playing').addClass('ready');
-                                $b.attr('data-status', 'ready'); // 双重保险，防止变�?
+                                $b.attr('data-status', 'ready');
                             }
                         });
 
-                        // ... 删除按钮逻辑保持不变 ...
                         $content.find('.fav-del-btn').off().click(async function (e) {
                             e.stopPropagation();
                             if (!confirm("确定删除这条收藏吗？")) return;
@@ -306,25 +288,21 @@ export const TTS_Mobile = window.TTS_Mobile;
                             } catch (err) { alert("删除失败: " + err.message); }
                         });
 
-                        // 下载按钮逻辑
                         $content.find('.fav-download-btn').off().click(async function (e) {
                             e.stopPropagation();
                             const $item = $(this).closest('.fav-item');
                             const $bubble = $item.find('.fav-play-bubble');
 
-                            // 🔧 直接使用下载 API URL (已经包含正确�?CORS �?
-                            // data-url 已经在上面被转换�?/download_favorite/xxx.wav 格式
                             const audioUrl = $bubble.data('url');
                             const speaker = $bubble.data('voice-name') || 'Unknown';
-                            const text = $bubble.data('text') || $item.find('.fav-text-content').text().replace(/^"|"$/g, '').trim();
+                            const text = $bubble.data('text') || $item.find('.fav-text-content').text().replace(/^\"|\"$/g, '').trim();
 
-                            // 🔍 调试日志
-                            console.log("📥 下载收藏�?");
+                            console.log("📥 下载收藏音频");
                             console.log("  - audioUrl:", audioUrl);
                             console.log("  - speaker:", speaker);
                             console.log("  - text:", text);
 
-                            // 🔧 构建自定义文件名并添加到 URL
+
                             const cleanText = text.substring(0, 50).replace(/[<>:"/\\|?*\x00-\x1F]/g, '_');
                             const customFilename = `${speaker}:${cleanText}.wav`;
 
@@ -339,9 +317,7 @@ export const TTS_Mobile = window.TTS_Mobile;
                             console.log("  - customFilename:", customFilename);
                             console.log("  - final URL:", finalUrl);
 
-                            // 调用共用下载函数 (下载 API 返回的是可下载的文件,不会�?CORS 问题)
                             if (window.TTS_Events && window.TTS_Events.downloadAudio) {
-                                // 注意:这里传递的 text 参数不会被使�?因为文件名已经在 URL 中了
                                 await window.TTS_Events.downloadAudio(finalUrl, speaker, text);
                             } else {
                                 alert("下载功能未就绪,请刷新页面");
@@ -365,7 +341,7 @@ export const TTS_Mobile = window.TTS_Mobile;
                 container.empty();
                 container.append(createNavbar("LLM连接测试"));
 
-                // 从配置文件读取默认�?
+                // 从配置文件读取默认值
                 let defaultConfig = {
                     api_url: 'http://127.0.0.1:7861/v1/chat/completions',
                     api_key: 'pwd',
@@ -379,7 +355,7 @@ export const TTS_Mobile = window.TTS_Mobile;
                     const settingsRes = await fetch('/api/settings');
                     if (settingsRes.ok) {
                         const settings = await settingsRes.json();
-                        console.log('[LLM测试] 加载的配�?', settings);
+                        console.log('[LLM测试] 加载的配置', settings);
 
                         if (settings.phone_call && settings.phone_call.llm) {
                             const llmConfig = settings.phone_call.llm;
@@ -390,13 +366,13 @@ export const TTS_Mobile = window.TTS_Mobile;
                                 temperature: llmConfig.temperature !== undefined ? llmConfig.temperature : defaultConfig.temperature,
                                 max_tokens: llmConfig.max_tokens || defaultConfig.max_tokens
                             };
-                            console.log('[LLM测试] �?成功加载配置');
+                            console.log('[LLM测试] 成功加载配置');
                         }
                     } else {
                         console.warn('[LLM测试] 配置API返回错误:', settingsRes.status);
                     }
                 } catch (e) {
-                    console.warn('[LLM测试] 无法加载配置,使用默认�?', e.message);
+                    console.warn('[LLM测试] 无法加载配置,使用默认值', e.message);
                 }
 
                 const $content = $(`
@@ -445,15 +421,15 @@ export const TTS_Mobile = window.TTS_Mobile;
                         </div>
                         
                         <div style="background:#fff; border-radius:12px; padding:15px; margin-bottom:15px;">
-                            <h3 style="margin:0 0 15px 0; font-size:16px; color:#333;">💬 测试提示�?/h3>
+                            <h3 style="margin:0 0 15px 0; font-size:16px; color:#333;">💬 测试提示词</h3>
                             <textarea id="llm-test-prompt" 
                                 style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; font-size:14px; min-height:80px; resize:vertical;"
-                                placeholder="输入测试提示�?..">你好,请回�?测试成功'</textarea>
+                                placeholder="输入测试提示词...">你好,请回复'测试成功'</textarea>
                         </div>
                         
                         <button id="llm-test-btn" 
                             style="width:100%; padding:15px; background:#8b5cf6; color:#fff; border:none; border-radius:12px; font-size:16px; font-weight:bold; cursor:pointer; margin-bottom:15px;">
-                            🚀 开始测�?
+                            🚀 开始测试
                         </button>
                         
                         <div id="llm-test-result" style="display:none; background:#fff; border-radius:12px; padding:15px;">
@@ -465,7 +441,7 @@ export const TTS_Mobile = window.TTS_Mobile;
 
                 container.append($content);
 
-                // �?修复: 事件绑定移到DOM添加之后
+
                 // 使用事件委托确保元素存在
                 $content.on('click', '#llm-fetch-models', async function () {
                     const $btn = $(this);
@@ -478,10 +454,10 @@ export const TTS_Mobile = window.TTS_Mobile;
                         return;
                     }
 
-                    $btn.prop('disabled', true).text('�?获取�?..');
+                    $btn.prop('disabled', true).text('获取中...');
 
                     try {
-                        console.log('[LLM测试] 开始获取模型列�?..');
+                        console.log('[LLM测试] 开始获取模型列表...');
                         const models = await window.LLM_Client.fetchModels(apiUrl, apiKey);
                         console.log('[LLM测试] 成功获取模型:', models);
 
@@ -495,10 +471,10 @@ export const TTS_Mobile = window.TTS_Mobile;
                             $select.val(currentValue);
                         }
 
-                        alert(`�?成功获取 ${models.length} 个模型`);
+                        alert(`成功获取 ${models.length} 个模型`);
                     } catch (error) {
                         console.error('[LLM测试] 获取模型失败:', error);
-                        alert(`�?获取模型失败: ${error.message}`);
+                        alert(`获取模型失败: ${error.message}`);
                     } finally {
                         $btn.prop('disabled', false).text('🔄 获取模型列表');
                     }
@@ -519,11 +495,11 @@ export const TTS_Mobile = window.TTS_Mobile;
                     };
 
                     if (!config.api_url || !config.api_key || !config.model) {
-                        alert('�?请填写完整的API配置');
+                        alert('请填写完整的API配置');
                         return;
                     }
 
-                    $btn.prop('disabled', true).text('�?测试�?..');
+                    $btn.prop('disabled', true).text('测试中...');
                     $result.show();
                     $resultContent.html('<div style="text-align:center; padding:20px; color:#666;">正在连接LLM...</div>');
 
@@ -535,12 +511,12 @@ export const TTS_Mobile = window.TTS_Mobile;
                         // 显示成功结果
                         $resultContent.html(`
                             <div style="padding:15px; background:#d1fae5; border-radius:8px; margin-bottom:10px;">
-                                <div style="font-size:18px; margin-bottom:5px;">�?连接成功</div>
+                                <div style="font-size:18px; margin-bottom:5px;">✅ 连接成功</div>
                                 <div style="font-size:13px; color:#065f46;">LLM响应正常</div>
                             </div>
                             
                             <div style="margin-bottom:10px;">
-                                <strong style="color:#666; font-size:13px;">📤 测试提示�?</strong>
+                                <strong style="color:#666; font-size:13px;">📤 测试提示词</strong>
                                 <div style="background:#f9fafb; padding:10px; border-radius:6px; margin-top:5px; font-size:13px; color:#333;">
                                     ${config.prompt}
                                 </div>
@@ -555,7 +531,7 @@ export const TTS_Mobile = window.TTS_Mobile;
                             
                             <div style="font-size:12px; color:#999; padding:10px; background:#f9fafb; border-radius:6px;">
                                 <div>🔧 模型: ${config.model}</div>
-                                <div>🌡�?温度: ${config.temperature}</div>
+                                <div>🌡️ 温度: ${config.temperature}</div>
                                 <div>📊 最大Token: ${config.max_tokens}</div>
                                 <div>🌐 API: ${config.api_url}</div>
                             </div>
@@ -566,7 +542,7 @@ export const TTS_Mobile = window.TTS_Mobile;
 
                         $resultContent.html(`
                             <div style="padding:15px; background:#fee2e2; border-radius:8px; margin-bottom:10px;">
-                                <div style="font-size:18px; margin-bottom:5px;">�?连接失败</div>
+                                <div style="font-size:18px; margin-bottom:5px;">❌ 连接失败</div>
                                 <div style="font-size:13px; color:#991b1b;">${error.message}</div>
                             </div>
                             
@@ -603,12 +579,12 @@ export const TTS_Mobile = window.TTS_Mobile;
                         <div style="background:#fff; border-radius:12px; padding:15px; margin-bottom:15px;">
                             <h3 style="margin:0 0 15px 0; font-size:16px; color:#333;">📋 测试说明</h3>
                             <div style="font-size:13px; color:#666; line-height:1.6;">
-                                这是一个简单的主动电话功能测试界面�?br>
-                                点击"生成电话"按钮,系统�?<br>
-                                1. 读取当前对话上下�?br>
+                                这是一个简单的主动电话功能测试界面。<br>
+                                点击"生成电话"按钮,系统将:<br>
+                                1. 读取当前对话上下文<br>
                                 2. 调用LLM生成电话内容<br>
                                 3. 生成带情绪的TTS音频<br>
-                                4. 返回完整的音频文�?
+                                4. 返回完整的音频文件
                             </div>
                         </div>
 
@@ -620,7 +596,7 @@ export const TTS_Mobile = window.TTS_Mobile;
                         </div>
 
                         <div style="background:#fff; border-radius:12px; padding:15px; margin-bottom:15px;">
-                            <h3 style="margin:0 0 15px 0; font-size:16px; color:#333;">💬 对话上下�?/h3>
+                            <h3 style="margin:0 0 15px 0; font-size:16px; color:#333;">💬 对话上下文</h3>
                             <div id="phone-context-info" style="font-size:13px; color:#666; padding:10px; background:#f9fafb; border-radius:8px;">
                                 正在获取...
                             </div>
@@ -640,29 +616,29 @@ export const TTS_Mobile = window.TTS_Mobile;
 
                 container.append($content);
 
-                // �?修复: 上下文获取移到DOM添加之后
+
                 // 获取当前角色信息
                 let charName = "";
                 let context = [];
 
                 try {
-                    console.log('[主动电话] 开始获取角色和上下�?..');
+                    console.log('[主动电话] 开始获取角色和上下文...');
 
                     if (window.SillyTavern && window.SillyTavern.getContext) {
                         const ctx = window.SillyTavern.getContext();
-                        console.log('[主动电话] SillyTavern上下�?', ctx);
+                        console.log('[主动电话] SillyTavern上下文', ctx);
 
-                        // 获取角色�?
+                        // 获取角色名
                         if (ctx.characters && ctx.characterId !== undefined) {
                             const charObj = ctx.characters[ctx.characterId];
                             if (charObj && charObj.name) {
                                 charName = charObj.name;
                                 $('#phone-char-name').html(`<strong>${charName}</strong>`);
-                                console.log('[主动电话] 角色�?', charName);
+                                console.log('[主动电话] 角色名', charName);
                             }
                         }
 
-                        // 获取对话上下�?
+                        // 获取对话上下文
                         if (ctx.chat && Array.isArray(ctx.chat)) {
                             context = ctx.chat.map(msg => ({
                                 role: msg.is_user ? "user" : "assistant",
@@ -670,8 +646,8 @@ export const TTS_Mobile = window.TTS_Mobile;
                             }));
 
                             $('#phone-context-info').html(`
-                                �?<strong>${context.length}</strong> 条消�?br>
-                                <span style="font-size:12px; color:#999;">最�?0条将用于生成</span>
+                                共 <strong>${context.length}</strong> 条消息<br>
+                                <span style="font-size:12px; color:#999;">最近10条将用于生成</span>
                             `);
                             console.log('[主动电话] 上下文消息数:', context.length);
                         }
@@ -679,12 +655,12 @@ export const TTS_Mobile = window.TTS_Mobile;
                         console.warn('[主动电话] window.SillyTavern 未就绪');
                     }
                 } catch (e) {
-                    console.error("获取上下文失�?", e);
-                    $('#phone-char-name').html('<span style="color:#dc2626;">�?获取失败</span>');
-                    $('#phone-context-info').html('<span style="color:#dc2626;">�?获取失败</span>');
+                    console.error("获取上下文失败", e);
+                    $('#phone-char-name').html('<span style="color:#dc2626;">❌ 获取失败</span>');
+                    $('#phone-context-info').html('<span style="color:#dc2626;">❌ 获取失败</span>');
                 }
 
-                // �?修复: 事件绑定移到DOM添加之后
+
                 // 生成按钮点击事件
                 $content.on('click', '#phone-generate-btn', async function () {
                     const $btn = $(this);
@@ -701,20 +677,20 @@ export const TTS_Mobile = window.TTS_Mobile;
                         return;
                     }
 
-                    $btn.prop('disabled', true).text('�?生成�?..');
+                    $btn.prop('disabled', true).text('生成中...');
                     $result.show();
                     $resultContent.html('<div style="text-align:center; padding:20px; color:#666;">正在生成主动电话内容...</div>');
 
                     try {
-                        console.log('[主动电话] 开始生�?..', { charName, contextLength: context.length });
+                        console.log('[主动电话] 开始生成...', { charName, contextLength: context.length });
 
-                        // �?新流�? 三步�?
-                        // 步骤1: 调用后端构建提示�?
+                        // 全新流程: 三步走
+                        // 步骤1: 调用后端构建提示词
                         const apiBaseUrl = `${window.location.protocol}//${window.location.hostname}:3000`;
                         const buildPromptUrl = `${apiBaseUrl}/api/phone_call/build_prompt`;
 
-                        console.log('[主动电话] 步骤1: 构建提示�?..', buildPromptUrl);
-                        $resultContent.html('<div style="text-align:center; padding:20px; color:#666;">正在构建提示�?..</div>');
+                        console.log('[主动电话] 步骤1: 构建提示词...', buildPromptUrl);
+                        $resultContent.html('<div style="text-align:center; padding:20px; color:#666;">正在构建提示词...</div>');
 
                         const buildResponse = await fetch(buildPromptUrl, {
                             method: 'POST',
@@ -727,11 +703,11 @@ export const TTS_Mobile = window.TTS_Mobile;
 
                         if (!buildResponse.ok) {
                             const errorText = await buildResponse.text();
-                            throw new Error(`构建提示词失�?(${buildResponse.status}): ${errorText}`);
+                            throw new Error(`构建提示词失败(${buildResponse.status}): ${errorText}`);
                         }
 
                         const buildResult = await buildResponse.json();
-                        console.log('[主动电话] �?提示词构建完�?', buildResult);
+                        console.log('[主动电话] ✅ 提示词构建完成', buildResult);
 
                         // 步骤2: 使用LLM_Client直接调用外部LLM (就像LLM测试那样)
                         console.log('[主动电话] 步骤2: 调用LLM...');
@@ -770,13 +746,13 @@ export const TTS_Mobile = window.TTS_Mobile;
 
                         let html = `
                             <div style="padding:15px; background:#d1fae5; border-radius:8px; margin-bottom:15px;">
-                                <div style="font-size:18px; margin-bottom:5px;">�?生成成功</div>
-                                <div style="font-size:13px; color:#065f46;">�?${result.total_segments} 个情绪片�?/div>
+                                <div style="font-size:18px; margin-bottom:5px;">✅ 生成成功</div>
+                                <div style="font-size:13px; color:#065f46;">共 ${result.total_segments} 个情绪片段</div>
                             </div>
                         `;
 
                         if (result.segments && result.segments.length > 0) {
-                            html += '<div style="margin-bottom:15px;"><strong style="color:#666; font-size:13px;">📝 生成的内�?</strong></div>';
+                            html += '<div style="margin-bottom:15px;"><strong style="color:#666; font-size:13px;">📝 生成的内容</strong></div>';
 
                             result.segments.forEach((seg, i) => {
                                 html += `
@@ -832,7 +808,7 @@ export const TTS_Mobile = window.TTS_Mobile;
 
                         $resultContent.html(`
                             <div style="padding:15px; background:#fee2e2; border-radius:8px; margin-bottom:10px;">
-                                <div style="font-size:18px; margin-bottom:5px;">�?生成失败</div>
+                                <div style="font-size:18px; margin-bottom:5px;">❌ 生成失败</div>
                                 <div style="font-size:13px; color:#991b1b;">${error.message}</div>
                             </div>
                             
@@ -844,10 +820,9 @@ export const TTS_Mobile = window.TTS_Mobile;
                             <div style="margin-top:10px; padding:10px; background:#fef3c7; border-radius:6px; font-size:12px; color:#92400e;">
                                 💡 <strong>排查建议:</strong><br>
                                 1. 检查LLM配置是否正确<br>
-                                2. 确认角色有可用的参考音�?br>
-                                3. 查看浏览器控制台的详细日�?br>
-                                4. 检查后端服务是否正常运�?
-                            </div>
+                                2. 确认角色有可用的参考音频<br>
+                                3. 查看浏览器控制台的详细日志<br>
+                                4. 检查后端服务是否正常运行
                         `);
                     } finally {
                         $btn.prop('disabled', false).text('📞 生成主动电话');
@@ -855,41 +830,12 @@ export const TTS_Mobile = window.TTS_Mobile;
                 });
             }
         }
-        // 🔴 [临时注释] 后续再处�?
-        // 'history': {
-        //     name: '历史记录',
-        //     icon: '🕒',
-        //     bg: '#2563eb',
-        //     render: (container) => {
-        //         container.empty();
-        //         // 🟢 [修复] 加上导航�?
-        //         container.append(createNavbar("生成记录"));
-
-        //         const $content = $('<div style="padding:20px; flex:1; overflow-y:auto;"></div>');
-        //         $content.html(`
-        //             <div style="text-align:center; color:#888; margin-top:50px;">
-        //                 🚧 开发中<br>这里将显示最近生成的50条语�?
-        //             </div>
-        //         `);
-        //         container.append($content);
-        //     }
-        // },
-        // 'phone': {
-        //     name: '电话',
-        //     icon: '📞',
-        //     bg: '#10b981',
-        //     render: (container) => {
-        //         container.empty();
-        //         container.append(createNavbar("拨号键盘"));
-        //         container.append(`<div style="padding:20px; text-align:center; flex:1; display:flex; align-items:center; justify-content:center;">拨号盘界�?br>(未来扩展)</div>`);
-        //     }
-        // }
     };
 
     scope.init = function () {
         if ($('meta[name="viewport"]').length === 0) {
             $('head').append('<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">');
-            console.log("📱 [Mobile] 已注�?Viewport 标签以适配手机屏幕");
+            console.log("📱 [Mobile] 已注入 Viewport 标签以适配手机屏幕");
         }
 
         if ($('#tts-mobile-root').length === 0) {
@@ -978,37 +924,29 @@ export const TTS_Mobile = window.TTS_Mobile;
         const $phone = $('#tts-mobile-root');
         const $trigger = $('#tts-mobile-trigger');
 
-        // ============================================================
-        // 🟢 [终极修复版] 悬浮球拖拽逻辑 (带防抖死�?
-        // ============================================================
         let isDragging = false;
-        let hasMoved = false; // 标记是否发生了实质性拖�?
+        let hasMoved = false;
 
-        // 记录起始数据
-        let startX, startY;   // 手指刚按下时的屏幕坐�?
-        let shiftX, shiftY;   // 手指在小球内部的偏移�?
-        let winW, winH;       // 屏幕宽高缓存
+        let startX, startY;
+        let shiftX, shiftY;
+        let winW, winH;
 
-        // 防抖阈�?(像素)：小于这个距离视为点击，大于视为拖拽
-        // 如果觉得还是太灵敏，可以�?10 改成 15
         const DRAG_THRESHOLD = 10;
 
-        // 1. 按下 (鼠标或手�?
+
         $trigger.on('mousedown touchstart', function (e) {
-            // 多指触控忽略
             if (e.type === 'touchstart' && e.touches.length > 1) return;
 
-            // 阻止默认行为 (防止选中文本�?
             if (e.cancelable) e.preventDefault();
 
             const point = e.type === 'touchstart' ? e.touches[0] : e;
             const rect = $trigger[0].getBoundingClientRect();
 
-            // 记录初始状�?
+            // 记录初始状态
             startX = point.clientX;
             startY = point.clientY;
 
-            // 计算手指在小球内的偏移量，保证拖拽时不跳�?
+            // 计算手指在小球内的偏移量，保证拖拽时不跳动
             shiftX = startX - rect.left;
             shiftY = startY - rect.top;
 
@@ -1016,53 +954,50 @@ export const TTS_Mobile = window.TTS_Mobile;
             winH = $(window).height();
 
             isDragging = true;
-            hasMoved = false; // 重置标记
+            hasMoved = false;
 
-            // 绑定全局事件
+
             document.addEventListener('mousemove', onMove, { passive: false });
             document.addEventListener('touchmove', onMove, { passive: false });
             document.addEventListener('mouseup', onUp);
             document.addEventListener('touchend', onUp);
         });
 
-        // 2. 移动
         function onMove(e) {
             if (!isDragging) return;
-            if (e.cancelable) e.preventDefault(); // 防止屏幕随手指滚�?
+            if (e.cancelable) e.preventDefault();
 
             const point = e.type === 'touchmove' ? e.touches[0] : e;
             const currentX = point.clientX;
             const currentY = point.clientY;
 
             // 🔥 [核心逻辑] 计算移动距离
-            // 如果还未标记为“移动中”，先计算距离是否超过阈�?
+            // 如果还未标记为“移动中”，先计算距离是否超过阈值
             if (!hasMoved) {
                 const moveDis = Math.sqrt(Math.pow(currentX - startX, 2) + Math.pow(currentY - startY, 2));
 
-                // 如果移动距离太小（手抖），直接退出，不改变小球位置！
                 if (moveDis < DRAG_THRESHOLD) {
                     return;
                 }
 
-                // 超过阈值了！正式确认为拖拽模式
                 hasMoved = true;
 
-                // ⚡️ 此时才把 CSS 锁死为绝对定位，防止跳变
+
                 const rect = $trigger[0].getBoundingClientRect();
                 $trigger.css({
                     position: 'fixed',
                     right: 'auto',
                     bottom: 'auto',
-                    transform: 'none' // 去掉 CSS 的居中变�?
+                    transform: 'none'
                 });
             }
 
-            // --- 下面是正式的拖拽逻辑 ---
+
 
             let newLeft = currentX - shiftX;
             let newTop = currentY - shiftY;
 
-            // 边界限制
+
             newLeft = Math.max(0, Math.min(winW - 60, newLeft));
             newTop = Math.max(0, Math.min(winH - 60, newTop));
 
@@ -1072,18 +1007,17 @@ export const TTS_Mobile = window.TTS_Mobile;
             });
         }
 
-        // 3. 抬起
         function onUp(e) {
             isDragging = false;
 
-            // 解绑
+
             document.removeEventListener('mousemove', onMove);
             document.removeEventListener('touchmove', onMove);
             document.removeEventListener('mouseup', onUp);
             document.removeEventListener('touchend', onUp);
 
-            // 🔥 判决时刻�?
-            // 如果 hasMoved 依然�?false，说明手指移动没超过 10px
+            // 🔥 判决时刻:
+            // 如果 hasMoved 依然是false，说明手指移动没超过 10px
             // 这就是一次完美的“点击”！
             if (!hasMoved) {
                 togglePhone();
@@ -1093,19 +1027,13 @@ export const TTS_Mobile = window.TTS_Mobile;
             }
         }
 
-        // 自动贴边 (可选，不喜欢可以删�?
         function snapToEdge() {
             const rect = $trigger[0].getBoundingClientRect();
             const midX = winW / 2;
             const targetLeft = (rect.left + 30 < midX) ? 10 : (winW - 70);
 
-            // 使用 jQuery 动画平滑吸附
             $trigger.animate({ left: targetLeft }, 200);
         }
-
-        // ============================================================
-        // 其他原有事件
-        // ============================================================
 
         $('#tts-mobile-power-btn').click(function (e) {
             e.stopPropagation();

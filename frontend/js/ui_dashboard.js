@@ -1,5 +1,4 @@
 ﻿// 文件: ui_dashboard.js
-// 确保 window.TTS_UI 存在
 if (!window.TTS_UI) {
     window.TTS_UI = {};
 }
@@ -7,38 +6,9 @@ if (!window.TTS_UI) {
 export const TTS_UI = window.TTS_UI;
 
 (function (scope) {
-    // 渲染下拉框选项
-    scope.renderModelOptions = function () {
-        const CTX = scope.CTX; // 从主模块获取上下文
-        const $select = $('#tts-new-model');
-        const currentVal = $select.val();
-        $select.empty().append('<option disabled value="">选择模型...</option>');
-        const models = CTX.CACHE.models || {};
-        if (Object.keys(models).length === 0) { $select.append('<option disabled>暂无模型文件</option>'); return; }
-        Object.keys(models).forEach(k => { $select.append(`<option value="${k}">${k}</option>`); });
-        if (currentVal) $select.val(currentVal);
-        else $select.find('option:first').next().prop('selected', true);
-    };
 
-    // 渲染绑定列表
-    scope.renderDashboardList = function () {
-        const CTX = scope.CTX;
-        const c = $('#tts-mapping-list').empty();
-        const mappings = CTX.CACHE.mappings || {};
-        if (Object.keys(mappings).length === 0) { c.append('<div class="tts-empty">暂无绑定记录</div>'); return; }
-        Object.keys(mappings).forEach(k => {
-            // 注意：这里引用了 window.TTS_UI.handleUnbind，确保主入口暴露了这个方�?
-            c.append(`
-                <div class="tts-list-item">
-                    <span class="col-name">${k}</span>
-                    <span class="col-model">${mappings[k]}</span>
-                    <div class="col-action"><button class="btn-red" onclick="window.TTS_UI.handleUnbind('${k}')">解绑</button></div>
-                </div>
-            `);
-        });
-    };
 
-    // 绑定面板内的所有事�?
+    // 绑定面板内的所有事件
     scope.bindDashboardEvents = function () {
         const CTX = scope.CTX;
 
@@ -74,7 +44,7 @@ export const TTS_UI = window.TTS_UI;
             $('#style-selector').val(currentStyle);
         }
 
-        // 远程连接开�?
+        // 远程连接开关
         $('#tts-remote-switch').change(function () {
             const checked = $(this).is(':checked');
             if (checked) $('#tts-remote-input-area').slideDown();
@@ -165,18 +135,18 @@ export const TTS_UI = window.TTS_UI;
             const txt = $(this).text();
             const $container = $(this).closest('.tts-custom-select');
 
-            // 1. UI 立即反馈：更新文字显�?
+            // 1. UI 立即反馈：更新文字显示
             $container.find('.select-trigger span').text(txt);
             $container.find('.select-trigger').attr('data-value', val);
             $('#style-selector').val(val);
             $container.removeClass('open');
 
-            // 2. ⚡️ 核心修复：立即让 Body 变身�?不用刷新页面就能看到效果)
+            // 2. ⚡️ 核心修复：立即让 Body 变身 (不用刷新页面就能看到效果)
             document.body.setAttribute('data-bubble-style', val);
 
-            // 3. ⚡️ 核心修复：死死记住它�?写入 localStorage)
+            // 3. ⚡️ 核心修复：死死记住它 (写入 localStorage)
             localStorage.setItem('tts_bubble_style', val);
-            console.log("�?[UI] 本地缓存已更新为:", val);
+            console.log("[UI] 本地缓存已更新为:", val);
 
             try {
                 // 4. 告诉后端保存 (保持之前的逻辑)
@@ -186,11 +156,11 @@ export const TTS_UI = window.TTS_UI;
 
                 if (window.TTS_API && window.TTS_API.updateSettings) {
                     await window.TTS_API.updateSettings({ bubble_style: val });
-                    console.log("�?[API] 后端配置已同�?", val);
+                    console.log("[API] 后端配置已同步", val);
                 }
             } catch (err) {
-                console.error("�?样式保存失败", err);
-                // 就算后端失败了，至少本地变了，用户体验不会卡�?
+                console.error("样式保存失败", err);
+                // 就算后端失败了，至少本地变了，用户体验不会卡顿
             }
         });
 
@@ -199,16 +169,16 @@ export const TTS_UI = window.TTS_UI;
         });
     };
     // ===========================================
-    // ⬇️ 渲染模型下拉菜单 (适配�?
+    // ⬇️ 渲染模型下拉菜单 (适配)
     // ===========================================
     scope.renderModelOptions = function () {
-        // 关键点：�?scope 中获取全局上下�?
+        // 关键点：从 scope 中获取全局上下文
         const CTX = scope.CTX;
 
         const $select = $('#tts-new-model');
         const currentVal = $select.val();
 
-        // 重置下拉�?
+        // 重置下拉框
         $select.empty().append('<option disabled value="">选择模型...</option>');
 
         // 获取模型数据
@@ -224,7 +194,7 @@ export const TTS_UI = window.TTS_UI;
             $select.append(`<option value="${k}">${k}</option>`);
         });
 
-        // 保持选中状态或默认选中第一�?
+        // 保持选中状态或默认选中第一个
         if (currentVal) {
             $select.val(currentVal);
         } else {
@@ -233,7 +203,7 @@ export const TTS_UI = window.TTS_UI;
     };
 
     // ===========================================
-    // ⬇️ 渲染绑定列表 (适配�?
+    // ⬇️ 渲染绑定列表 (适配)
     // ===========================================
     scope.renderDashboardList = function () {
         const CTX = scope.CTX;
@@ -247,8 +217,8 @@ export const TTS_UI = window.TTS_UI;
         }
 
         Object.keys(mappings).forEach(k => {
-            // 注意：HTML 里的 onclick 必须指向全局�?window.TTS_UI.handleUnbind
-            // 确保 ui_main.js 已经暴露了这个方�?
+            // 注意：HTML 里的 onclick 必须指向全局 window.TTS_UI.handleUnbind
+            // 确保 ui_main.js 已经暴露了这个方法
             c.append(`
                 <div class="tts-list-item">
                     <span class="col-name">${k}</span>
