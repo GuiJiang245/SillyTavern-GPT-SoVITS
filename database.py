@@ -43,6 +43,22 @@ class DatabaseManager:
                 emotion TEXT
             )
         ''')
+        
+        # 创建 auto_phone_calls 表 - 自动生成电话记录
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS auto_phone_calls (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                char_name TEXT NOT NULL,
+                trigger_floor INTEGER NOT NULL,
+                segments TEXT NOT NULL,
+                audio_path TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                status TEXT DEFAULT 'pending',
+                error_message TEXT,
+                UNIQUE(char_name, trigger_floor)
+            )
+        ''')
+        
         conn.commit()
         conn.close()
 
@@ -156,4 +172,162 @@ class DatabaseManager:
                 d["context"] = json.loads(d["context"])
             except:
                 d["context"] = []
+        return d
+
+    # ==================== 自动电话生成记录相关方法 ====================
+    
+    def add_auto_phone_call(self, char_name: str, trigger_floor: int, segments: List[Dict], 
+                           audio_path: Optional[str] = None, status: str = "pending") -> Optional[int]:
+        """
+        添加自动电话生成记录
+        
+        Args:
+            char_name: 角色名称
+            trigger_floor: 触发楼层
+            segments: 情绪片段列表
+            audio_path: 音频文件路径
+            status: 状态 (pending/generating/completed/failed)
+            
+        Returns:
+            记录ID,如果已存在则返回 None
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        
+        segments_json = json.dumps(segments, ensure_ascii=False)
+        
+        try:
+            cursor.execute('''
+                INSERT INTO auto_phone_calls (
+                    char_name, trigger_floor, segments, audio_path, status
+                ) VALUES (?, ?, ?, ?, ?)
+            ''', (char_name, trigger_floor, segments_json, audio_path, status))
+            conn.commit()
+            return cursor.lastrowid
+        except sqlite3.IntegrityError:
+            # 违反唯一约束,已存在相同记录
+            return None
+        finally:
+            conn.close()
+    
+    def is_auto_call_generated(self, char_name: str, trigger_floor: int) -> bool:
+        """
+        检查指定楼层是否已生成过自动电话
+        
+        Args:
+            char_name: 角色名称
+            trigger_floor: 触发楼层
+            
+        Returns:
+            True 表示已生成, False 表示未生成
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        
+        try:
+            cursor.execute('''
+                SELECT COUNT(*) FROM auto_phone_calls 
+                WHERE char_name = ? AND trigger_floor = ?
+            ''', (char_name, trigger_floor))
+            count = cursor.fetchone()[0]
+            return count > 0
+        finally:
+            conn.close()
+    
+    def update_auto_call_status(self, call_id: int, status: str, 
+                               audio_path: Optional[str] = None, 
+                               error_message: Optional[str] = None):
+        """
+        更新自动电话记录状态
+        
+        Args:
+            call_id: 记录ID
+            status: 新状态
+            audio_path: 音频路径(可选)
+            error_message: 错误信息(可选)
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        
+        try:
+            if audio_path:
+                cursor.execute('''
+                    UPDATE auto_phone_calls 
+                    SET status = ?, audio_path = ?, error_message = ?
+                    WHERE id = ?
+                ''', (status, audio_path, error_message, call_id))
+            else:
+                cursor.execute('''
+                    UPDATE auto_phone_calls 
+                    SET status = ?, error_message = ?
+                    WHERE id = ?
+                ''', (status, error_message, call_id))
+            conn.commit()
+        finally:
+            conn.close()
+    
+    def get_auto_call_history(self, char_name: str, limit: int = 50) -> List[Dict[str, Any]]:
+        """
+        获取角色的自动电话历史记录
+        
+        Args:
+            char_name: 角色名称
+            limit: 返回记录数量限制
+            
+        Returns:
+            记录列表,按创建时间倒序
+        """
+        conn = self._get_connection()
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        try:
+            cursor.execute('''
+                SELECT * FROM auto_phone_calls 
+                WHERE char_name = ? 
+                ORDER BY created_at DESC 
+                LIMIT ?
+            ''', (char_name, limit))
+            rows = cursor.fetchall()
+            return [self._auto_call_row_to_dict(row) for row in rows]
+        finally:
+            conn.close()
+    
+    def get_latest_auto_call(self, char_name: str) -> Optional[Dict[str, Any]]:
+        """
+        获取角色最新的自动电话记录
+        
+        Args:
+            char_name: 角色名称
+            
+        Returns:
+            最新记录或 None
+        """
+        conn = self._get_connection()
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        try:
+            cursor.execute('''
+                SELECT * FROM auto_phone_calls 
+                WHERE char_name = ? 
+                ORDER BY created_at DESC 
+                LIMIT 1
+            ''', (char_name,))
+            row = cursor.fetchone()
+            if row:
+                return self._auto_call_row_to_dict(row)
+            return None
+        finally:
+            conn.close()
+    
+    def _auto_call_row_to_dict(self, row: sqlite3.Row) -> Dict[str, Any]:
+        """将自动电话记录行转换为字典"""
+        d = dict(row)
+        # 反序列化 segments
+        if d.get("segments"):
+            try:
+                d["segments"] = json.loads(d["segments"])
+            except:
+                d["segments"] = []
         return d

@@ -423,11 +423,24 @@
             await loadModule('llm_client');
             await loadModule('mobile_ui');
 
+            console.log("📞 [Loader] 加载自动电话模块...");
+            await loadModule('auto_phone_call');
+
             console.log("✅ [Loader] 所有模块加载完毕，启动插件");
             initPlugin();
             if (window.TTS_Mobile && window.TTS_Mobile.init) {
                 window.TTS_Mobile.init();
             }
+
+            // 初始化自动电话功能 (延迟 2 秒,确保 SillyTavern 完全加载)
+            setTimeout(() => {
+                if (window.TTS_AutoPhoneCall && window.TTS_AutoPhoneCall.init) {
+                    console.log("📞 [Loader] 开始初始化自动电话功能...");
+                    window.TTS_AutoPhoneCall.init();
+                } else {
+                    console.warn("⚠️ [Loader] TTS_AutoPhoneCall 模块未找到");
+                }
+            }, 2000);
 
         } catch (error) {
             console.error("❌ TTS插件启动失败:", error);

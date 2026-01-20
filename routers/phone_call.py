@@ -42,6 +42,14 @@ class LLMTestRequest(BaseModel):
     test_prompt: Optional[str] = "你好,请回复'测试成功'"
 
 
+class MessageWebhookRequest(BaseModel):
+    """消息 Webhook 请求"""
+    char_name: str
+    current_floor: int  # 当前对话楼层
+    context: List[Dict[str, str]]  # 完整对话上下文
+
+
+
 @router.post("/phone_call/build_prompt")
 async def build_prompt(req: BuildPromptRequest):
     """
@@ -403,3 +411,163 @@ async def test_llm(req: LLMTestRequest):
         测试结果
     """
     return await LLMService.test_connection(req.dict())
+
+
+# ==================== 自动生成相关接口 ====================
+
+@router.post("/phone_call/webhook/message")
+async def message_webhook(req: MessageWebhookRequest):
+    """
+    接收 SillyTavern 消息 webhook
+    
+    当用户发送消息时,SillyTavern 调用此接口,触发自动生成检测
+    
+    Args:
+        req: 包含角色名、当前楼层和对话上下文
+        
+    Returns:
+        处理结果
+    """
+    try:
+        from services.conversation_monitor import ConversationMonitor
+        from services.auto_call_scheduler import AutoCallScheduler
+        
+        print(f"\n[Webhook] 收到消息: {req.char_name} @ 楼层{req.current_floor}")
+        
+        # 检查是否应该触发
+        monitor = ConversationMonitor()
+        
+        if not monitor.should_trigger(req.char_name, req.current_floor):
+            return {
+                "status": "skipped",
+                "message": "未达到触发条件"
+            }
+        
+        # 提取上下文
+        context = monitor.extract_context(req.context)
+        trigger_floor = monitor.get_trigger_floor(req.current_floor)
+        
+        # 调度生成任务
+        scheduler = AutoCallScheduler()
+        call_id = await scheduler.schedule_auto_call(req.char_name, trigger_floor, context)
+        
+        if call_id is None:
+            return {
+                "status": "duplicate",
+                "message": "该楼层已生成或正在生成中"
+            }
+        
+        return {
+            "status": "scheduled",
+            "call_id": call_id,
+            "message": f"已调度自动生成任务: {req.char_name} @ 楼层{trigger_floor}"
+        }
+        
+    except Exception as e:
+        print(f"[Webhook] ❌ 错误: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/phone_call/auto/history/{char_name}")
+async def get_auto_call_history(char_name: str, limit: int = 50):
+    """
+    获取角色的自动生成历史记录
+    
+    Args:
+        char_name: 角色名称
+        limit: 返回记录数量限制
+        
+    Returns:
+        历史记录列表
+    """
+    try:
+        from database import DatabaseManager
+        
+        db = DatabaseManager()
+        history = db.get_auto_call_history(char_name, limit)
+        
+        return {
+            "status": "success",
+            "char_name": char_name,
+            "history": history,
+            "total": len(history)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/phone_call/auto/latest/{char_name}")
+async def get_latest_auto_call(char_name: str):
+    """
+    获取角色最新的自动生成记录
+    
+    Args:
+        char_name: 角色名称
+        
+    Returns:
+        最新记录或 null
+    """
+    try:
+        from database import DatabaseManager
+        
+        db = DatabaseManager()
+        latest = db.get_latest_auto_call(char_name)
+        
+        if latest is None:
+            return {
+                "status": "success",
+                "char_name": char_name,
+                "latest": None
+            }
+        
+        return {
+            "status": "success",
+            "char_name": char_name,
+            "latest": latest
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+from fastapi import WebSocket, WebSocketDisconnect
+
+@router.websocket("/ws/phone_call/{char_name}")
+async def websocket_phone_call(websocket: WebSocket, char_name: str):
+    """
+    WebSocket 实时推送连接
+    
+    前端建立连接后,当有新的自动生成完成时会收到推送
+    
+    Args:
+        websocket: WebSocket 连接
+        char_name: 角色名称
+    """
+    from services.notification_service import NotificationService
+    
+    await websocket.accept()
+    await NotificationService.register_connection(char_name, websocket)
+    
+    try:
+        print(f"[WebSocket] 连接已建立: {char_name}")
+        
+        # 发送欢迎消息
+        await websocket.send_json({
+            "type": "connected",
+            "char_name": char_name,
+            "message": "WebSocket 连接已建立"
+        })
+        
+        # 保持连接,接收心跳
+        while True:
+            data = await websocket.receive_text()
+            
+            # 处理心跳
+            if data == "ping":
+                await websocket.send_text("pong")
+            
+    except WebSocketDisconnect:
+        print(f"[WebSocket] 连接已断开: {char_name}")
+    except Exception as e:
+        print(f"[WebSocket] 错误: {char_name}, {str(e)}")
+    finally:
+        await NotificationService.unregister_connection(char_name, websocket)
