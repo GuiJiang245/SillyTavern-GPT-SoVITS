@@ -14,12 +14,14 @@ import { TTS_Parser } from './frontend/js/dom_parser.js';
 import { TTS_Scheduler } from './frontend/js/scheduler.js';
 import { TTS_Events } from './frontend/js/events.js';
 import * as TTS_Templates from './frontend/js/ui_templates.js';
+import { SpeakerManager } from './frontend/js/speaker_manager.js';
 
 import { TTS_UI } from './frontend/js/ui_main.js';
 import './frontend/js/ui_dashboard.js';  // 导入 ui_dashboard.js 以加载事件绑定函数
 import { LLM_Client } from './frontend/js/llm_client.js';
 import { TTS_Mobile } from './frontend/js/mobile_ui.js';
-import { TTS_AutoPhoneCall } from './frontend/js/auto_phone_call.js';
+import { WebSocketManager } from './frontend/js/websocket_manager.js';
+import { AutoPhoneCallListener } from './frontend/js/auto_phone_call_listener.js';
 
 // ================= 1. 配置区域 =================
 const lsConfig = localStorage.getItem('tts_plugin_remote_config');
@@ -58,6 +60,7 @@ window.TTS_Parser = TTS_Parser;
 window.TTS_Scheduler = TTS_Scheduler;
 window.TTS_Events = TTS_Events;
 window.TTS_Templates = TTS_Templates;
+window.LLM_Client = LLM_Client;  // 暴露 LLM_Client 供 mobile_ui.js 使用
 // 不要覆盖整个 window.TTS_UI,只添加 Templates
 // ui_main.js 的 IIFE 已经初始化了 window.TTS_UI.CTX
 if (!window.TTS_UI.Templates) {
@@ -368,11 +371,11 @@ if (TTS_Mobile && TTS_Mobile.init) {
 
 // 初始化自动电话功能 (延迟 2 秒,确保 SillyTavern 完全加载)
 setTimeout(() => {
-    if (TTS_AutoPhoneCall && TTS_AutoPhoneCall.init) {
-        console.log("📞 [Loader] 开始初始化自动电话功能...");
-        TTS_AutoPhoneCall.init();
+    if (AutoPhoneCallListener && AutoPhoneCallListener.init) {
+        console.log("📞 [Loader] 开始初始化自动电话监听器...");
+        AutoPhoneCallListener.init();
     } else {
-        console.warn("⚠️ [Loader] TTS_AutoPhoneCall 模块未找到");
+        console.warn("⚠️ [Loader] AutoPhoneCallListener 模块未找到");
     }
 }, 2000);
 

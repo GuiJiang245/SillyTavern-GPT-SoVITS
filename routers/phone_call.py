@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Union
 
 from services.phone_call_service import PhoneCallService
 from services.llm_service import LLMService
@@ -11,6 +11,13 @@ from phone_call_utils.response_parser import ResponseParser
 from config import load_json, SETTINGS_FILE
 
 router = APIRouter()
+
+
+class ContextMessage(BaseModel):
+    """对话上下文消息"""
+    name: str
+    is_user: bool  # 布尔值,不是字符串
+    mes: str
 
 
 class PhoneCallRequest(BaseModel):
@@ -32,6 +39,14 @@ class ParseAndGenerateRequest(BaseModel):
     generate_audio: Optional[bool] = True  # 默认生成音频
 
 
+class CompleteGenerationRequest(BaseModel):
+    """完成生成请求 (前端返回LLM响应)"""
+    call_id: int
+    llm_response: str
+    chat_branch: str
+    speakers: List[str]
+
+
 class LLMTestRequest(BaseModel):
     """LLM测试请求"""
     api_url: str
@@ -47,7 +62,7 @@ class MessageWebhookRequest(BaseModel):
     chat_branch: str  # 对话分支ID
     speakers: List[str]  # 说话人列表
     current_floor: int  # 当前对话楼层
-    context: List[Dict[str, str]]  # 完整对话上下文
+    context: List[ContextMessage]  # 完整对话上下文,使用 ContextMessage 模型
 
 
 
@@ -299,6 +314,169 @@ async def parse_and_generate(req: ParseAndGenerateRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/phone_call/complete_generation")
+async def complete_generation(req: CompleteGenerationRequest):
+    """
+    完成自动电话生成 (新架构 - 第二阶段)
+    
+    前端调用LLM后,将响应发送到此端点完成音频生成
+    
+    流程:
+    1. 接收前端的LLM响应
+    2. 解析响应并验证说话人
+    3. 生成音频
+    4. 更新数据库
+    5. 通过WebSocket通知前端完成
+    
+    Args:
+        req: 包含call_id、LLM响应、说话人列表等
+        
+    Returns:
+        生成结果
+    """
+    try:
+        from database import DatabaseManager
+        from services.auto_call_scheduler import AutoCallScheduler
+        import json
+        
+        print(f"\n[CompleteGeneration] 收到LLM响应: call_id={req.call_id}")
+        
+        db = DatabaseManager()
+        scheduler = AutoCallScheduler()
+        
+        # 解析LLM响应
+        response_data = json.loads(req.llm_response)
+        selected_speaker = response_data.get("speaker")
+        
+        # 验证说话人
+        if not selected_speaker or selected_speaker not in req.speakers:
+            raise ValueError(f"LLM返回的说话人 '{selected_speaker}' 无效,可用说话人: {req.speakers}")
+        
+        print(f"[CompleteGeneration] LLM选择的说话人: {selected_speaker}")
+        
+        # 获取该说话人的可用情绪
+        emotion_service = EmotionService()
+        available_emotions = emotion_service.get_available_emotions(selected_speaker)
+        
+        # 解析情绪片段
+        parser = ResponseParser()
+        settings = load_json(SETTINGS_FILE)
+        parser_config = settings.get("phone_call", {}).get("response_parser", {})
+        
+        segments = parser.parse_emotion_segments(
+            req.llm_response,
+            parser_config,
+            available_emotions=available_emotions
+        )
+        
+        print(f"[CompleteGeneration] 解析到 {len(segments)} 个情绪片段")
+        
+        # 生成音频
+        from phone_call_utils.tts_service import TTSService
+        from phone_call_utils.audio_merger import AudioMerger
+        from config import get_sovits_host
+        
+        tts_service = TTSService(get_sovits_host())
+        audio_merger = AudioMerger()
+        
+        tts_config = settings.get("phone_call", {}).get("tts_config", {})
+        audio_merge_config = settings.get("phone_call", {}).get("audio_merge", {})
+        
+        audio_bytes_list = []
+        previous_emotion = None
+        previous_ref_audio = None
+        
+        for i, segment in enumerate(segments):
+            print(f"[CompleteGeneration] 生成片段 {i+1}/{len(segments)}: [{segment.emotion}] {segment.text[:30]}...")
+            
+            # 选择参考音频
+            ref_audio = _select_ref_audio(selected_speaker, segment.emotion)
+            
+            if not ref_audio:
+                print(f"[CompleteGeneration] 警告: 未找到情绪 '{segment.emotion}' 的参考音频,跳过")
+                continue
+            
+            # 检测情绪变化
+            emotion_changed = previous_emotion is not None and previous_emotion != segment.emotion
+            
+            # 生成音频
+            try:
+                audio_bytes = await tts_service.generate_audio(
+                    segment=segment,
+                    ref_audio=ref_audio,
+                    tts_config=tts_config,
+                    previous_ref_audio=previous_ref_audio if emotion_changed else None
+                )
+                audio_bytes_list.append(audio_bytes)
+                
+                previous_emotion = segment.emotion
+                previous_ref_audio = ref_audio
+                
+            except Exception as e:
+                print(f"[CompleteGeneration] 错误: 生成音频失败 - {e}")
+                continue
+        
+        # 合并音频
+        audio_path = None
+        if audio_bytes_list:
+            print(f"[CompleteGeneration] 合并 {len(audio_bytes_list)} 段音频...")
+            merged_audio = audio_merger.merge_segments(audio_bytes_list, audio_merge_config)
+            
+            # 保存音频
+            audio_path = await scheduler._save_audio(
+                req.call_id,
+                selected_speaker,
+                merged_audio,
+                audio_merge_config.get("output_format", "wav")
+            )
+        
+        # 更新数据库
+        conn = db._get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                "UPDATE auto_phone_calls SET status = ?, audio_path = ?, segments = ? WHERE id = ?",
+                ("completed", audio_path, json.dumps([seg.dict() for seg in segments], ensure_ascii=False), req.call_id)
+            )
+            conn.commit()
+        finally:
+            conn.close()
+        
+        print(f"[CompleteGeneration] ✅ 生成完成: call_id={req.call_id}, audio={audio_path}")
+        
+        # 通知前端完成
+        from services.notification_service import NotificationService
+        notification_service = NotificationService()
+        await notification_service.notify_phone_call_ready(
+            char_name=selected_speaker,
+            call_id=req.call_id,
+            segments=[seg.dict() for seg in segments],
+            audio_path=audio_path
+        )
+        
+        # 移除运行中标记
+        primary_speaker = req.speakers[0] if req.speakers else selected_speaker
+        task_key = (primary_speaker, None)  # trigger_floor未知,但会被discard
+        if hasattr(scheduler, '_running_tasks'):
+            # 尝试移除所有相关任务
+            to_remove = [k for k in scheduler._running_tasks if k[0] == primary_speaker]
+            for k in to_remove:
+                scheduler._running_tasks.discard(k)
+        
+        return {
+            "status": "success",
+            "message": "生成完成",
+            "call_id": req.call_id,
+            "selected_speaker": selected_speaker,
+            "segments": [seg.dict() for seg in segments],
+            "audio_path": audio_path
+        }
+        
+    except Exception as e:
+        print(f"[CompleteGeneration] ❌ 失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 
 
 def _select_ref_audio(char_name: str, emotion: str) -> Optional[Dict]:
@@ -432,6 +610,15 @@ async def message_webhook(req: MessageWebhookRequest):
     try:
         from services.conversation_monitor import ConversationMonitor
         from services.auto_call_scheduler import AutoCallScheduler
+        
+        # 添加详细的请求日志
+        print(f"\n[Webhook] 收到请求:")
+        print(f"  - chat_branch: {req.chat_branch}")
+        print(f"  - speakers: {req.speakers}")
+        print(f"  - current_floor: {req.current_floor}")
+        print(f"  - context 条数: {len(req.context)}")
+        if req.context:
+            print(f"  - context 示例 (前2条): {req.context[:2]}")
         
         print(f"\n[Webhook] 收到消息: chat_branch={req.chat_branch}, 说话人={req.speakers}, 楼层={req.current_floor}")
         

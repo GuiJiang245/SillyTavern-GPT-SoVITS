@@ -65,7 +65,13 @@ class AutoCallScheduler:
     
     async def _execute_generation(self, call_id: int, chat_branch: str, speakers: List[str], trigger_floor: int, context: List[Dict]):
         """
-        执行生成任务(异步)
+        执行生成任务(异步) - 新架构
+        
+        流程:
+        1. 构建prompt
+        2. 通过WebSocket通知前端调用LLM
+        3. 前端调用LLM后,通过API将结果发回
+        4. 解析并生成音频
         
         Args:
             call_id: 任务ID
@@ -84,48 +90,37 @@ class AutoCallScheduler:
             # 更新状态为 generating
             self.db.update_auto_call_status(call_id, "generating")
             
-            # 调用生成服务 (传递说话人列表)
+            # 第一阶段: 构建prompt
             result = await self.phone_call_service.generate(
                 chat_branch=chat_branch,
                 speakers=speakers,
                 context=context,
-                generate_audio=True
+                generate_audio=False  # 暂时不生成音频
             )
             
-            segments = result.get("segments", [])
-            audio_data = result.get("audio")
+            prompt = result.get("prompt")
+            llm_config = result.get("llm_config")
             
-            # 保存音频文件(如果有)
-            audio_path = None
-            if audio_data:
-                audio_path = await self._save_audio(call_id, primary_speaker, audio_data, result.get("audio_format", "wav"))
+            print(f"[AutoCallScheduler] ✅ Prompt构建完成: {len(prompt)} 字符")
             
-            # 更新状态为 completed 并更新 segments
-            import json
-            
-            conn = self.db._get_connection()
-            cursor = conn.cursor()
-            try:
-                cursor.execute(
-                    "UPDATE auto_phone_calls SET status = ?, audio_path = ?, segments = ? WHERE id = ?",
-                    ("completed", audio_path, json.dumps(segments, ensure_ascii=False), call_id)
-                )
-                conn.commit()
-            finally:
-                conn.close()
-
-            
-            print(f"[AutoCallScheduler] ✅ 生成完成: ID={call_id}, segments={len(segments)}, audio={audio_path}")
-            
-            # 触发推送通知
+            # 第二阶段: 通过WebSocket通知前端调用LLM
             from services.notification_service import NotificationService
             notification_service = NotificationService()
-            await notification_service.notify_phone_call_ready(
-                char_name=primary_speaker,
+            
+            await notification_service.notify_llm_request(
                 call_id=call_id,
-                segments=segments,
-                audio_path=audio_path
+                char_name=primary_speaker,
+                prompt=prompt,
+                llm_config=llm_config,
+                speakers=speakers,
+                chat_branch=chat_branch
             )
+            
+            print(f"[AutoCallScheduler] ✅ 已通知前端调用LLM: call_id={call_id}")
+            print(f"[AutoCallScheduler] ⏳ 等待前端通过 /api/phone_call/complete_generation 返回LLM响应...")
+            
+            # 注意: 实际的音频生成将在 complete_generation API 中完成
+            # 这里任务状态保持为 "generating",等待前端响应
             
         except Exception as e:
             print(f"[AutoCallScheduler] ❌ 生成失败: ID={call_id}, 错误={str(e)}")
@@ -136,8 +131,6 @@ class AutoCallScheduler:
                 status="failed",
                 error_message=str(e)
             )
-        
-        finally:
             # 移除运行中标记
             self._running_tasks.discard(task_key)
     

@@ -2,6 +2,55 @@
 let currentAudio = null;
 
 export const TTS_Events = {
+    // 事件监听器存储
+    _listeners: {},
+
+    /**
+     * 注册事件监听器
+     * @param {string} eventName - 事件名称
+     * @param {Function} callback - 回调函数
+     */
+    on(eventName, callback) {
+        if (!this._listeners[eventName]) {
+            this._listeners[eventName] = [];
+        }
+        this._listeners[eventName].push(callback);
+        console.log(`[TTS_Events] ✅ 已注册事件监听: ${eventName}`);
+    },
+
+    /**
+     * 移除事件监听器
+     * @param {string} eventName - 事件名称
+     * @param {Function} callback - 回调函数
+     */
+    off(eventName, callback) {
+        if (!this._listeners[eventName]) return;
+
+        const index = this._listeners[eventName].indexOf(callback);
+        if (index > -1) {
+            this._listeners[eventName].splice(index, 1);
+            console.log(`[TTS_Events] ✅ 已移除事件监听: ${eventName}`);
+        }
+    },
+
+    /**
+     * 触发事件
+     * @param {string} eventName - 事件名称
+     * @param {*} data - 事件数据
+     */
+    emit(eventName, data) {
+        if (!this._listeners[eventName]) return;
+
+        console.log(`[TTS_Events] 📤 触发事件: ${eventName}`, data);
+        this._listeners[eventName].forEach(callback => {
+            try {
+                callback(data);
+            } catch (error) {
+                console.error(`[TTS_Events] ❌ 事件回调执行失败 (${eventName}):`, error);
+            }
+        });
+    },
+
     init() {
         this.bindClickEvents();
         this.bindMessageEvents();

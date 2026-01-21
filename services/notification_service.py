@@ -42,6 +42,36 @@ class NotificationService:
                     del cls._connections[char_name]
                 print(f"[NotificationService] 连接已注销: {char_name}")
     
+    
+    @classmethod
+    async def notify_llm_request(cls, call_id: int, char_name: str, prompt: str, llm_config: Dict, speakers: List[str], chat_branch: str):
+        """
+        推送LLM调用请求通知 (新架构)
+        
+        通知前端需要调用LLM,前端调用后将结果发送到 /api/phone_call/complete_generation
+        
+        Args:
+            call_id: 电话记录ID
+            char_name: 角色名称
+            prompt: LLM提示词
+            llm_config: LLM配置
+            speakers: 说话人列表
+            chat_branch: 对话分支ID
+        """
+        message = {
+            "type": "llm_request",
+            "call_id": call_id,
+            "char_name": char_name,
+            "prompt": prompt,
+            "llm_config": llm_config,
+            "speakers": speakers,
+            "chat_branch": chat_branch,
+            "timestamp": asyncio.get_event_loop().time()
+        }
+        
+        print(f"[NotificationService] 📤 通知前端调用LLM: call_id={call_id}, char={char_name}")
+        await cls.broadcast_to_char(char_name, message)
+    
     @classmethod
     async def notify_phone_call_ready(cls, char_name: str, call_id: int, segments: List[Dict], audio_path: Optional[str]):
         """

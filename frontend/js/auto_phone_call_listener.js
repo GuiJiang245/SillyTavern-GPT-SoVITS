@@ -1,0 +1,393 @@
+﻿/**
+ * 自动电话完整监听器
+ * 
+ * 功能:
+ * 1. 监听SillyTavern的角色消息事件
+ * 2. 计算当前楼层并发送webhook到后端
+ * 3. 监听后端的llm_request消息
+ * 4. 自动调用LLM并返回结果
+ */
+
+import { LLM_Client } from './llm_client.js';
+import { eventSource, event_types } from '../../../../../../script.js';
+import { SpeakerManager } from './speaker_manager.js';
+import { WebSocketManager } from './websocket_manager.js';
+
+export const AutoPhoneCallListener = {
+    // 当前角色名称
+    currentCharName: null,
+    // 是否已初始化
+    initialized: false,
+    // 是否有待处理的聊天切换(用于组合事件触发)
+    pendingChatChange: false,
+
+    /**
+     * 初始化监听器
+     */
+    init() {
+        if (this.initialized) {
+            console.log('[AutoPhoneCallListener] ⚠️ 已经初始化过,跳过');
+            return;
+        }
+
+        console.log('[AutoPhoneCallListener] 🚀 开始初始化自动电话功能...');
+
+        // 1. 绑定 SillyTavern 事件监听 (监听聊天楼层)
+        this.bindSillyTavernEvents();
+
+        // 2. 监听WebSocket消息 (接收LLM请求)
+        this.bindWebSocketListener();
+
+        this.initialized = true;
+        console.log('[AutoPhoneCallListener] ✅ 自动电话功能初始化完成');
+    },
+
+    /**
+     * 绑定 SillyTavern 的消息事件
+     */
+    bindSillyTavernEvents(retryCount = 0) {
+        const MAX_RETRIES = 30;
+
+        console.log(`[AutoPhoneCallListener] 🔍 检查 SillyTavern 状态 (重试: ${retryCount}/${MAX_RETRIES})`);
+
+        // 检查 SillyTavern 是否已加载
+        if (!window.SillyTavern || !window.SillyTavern.getContext || !eventSource || !event_types) {
+            if (retryCount >= MAX_RETRIES) {
+                console.error('[AutoPhoneCallListener] ❌ SillyTavern 加载超时');
+                return;
+            }
+
+            console.warn(`[AutoPhoneCallListener] ⚠️ SillyTavern 尚未加载,1秒后重试 (${retryCount + 1}/${MAX_RETRIES})`);
+            setTimeout(() => this.bindSillyTavernEvents(retryCount + 1), 1000);
+            return;
+        }
+
+        // 监听角色消息渲染完成事件 (AI 回复完成)
+        eventSource.on(event_types.CHARACTER_MESSAGE_RENDERED, (messageId) => {
+            console.log(`[AutoPhoneCallListener] 📨 检测到角色消息渲染: messageId=${messageId}`);
+            this.onCharacterMessageRendered(messageId);
+        });
+
+        // 监听聊天切换事件 (设置标记)
+        eventSource.on(event_types.CHAT_CHANGED, () => {
+            console.log('[AutoPhoneCallListener] 🔄 聊天切换开始,等待数据加载...');
+            this.pendingChatChange = true;
+
+            // 清除说话人缓存
+            SpeakerManager.clearCache();
+        });
+
+        // 监听聊天加载完成事件 (检查标记后执行)
+        eventSource.on('chatLoaded', () => {
+            console.log('[AutoPhoneCallListener] 📄 聊天已加载');
+
+            // 只有在聊天切换后才执行
+            if (this.pendingChatChange) {
+                console.log('[AutoPhoneCallListener] ✅ 聊天切换完成,开始处理');
+                this.pendingChatChange = false;
+                this.onCharacterPageLoaded();
+            } else {
+                console.log('[AutoPhoneCallListener] ⏭️ 非聊天切换场景,跳过');
+            }
+        });
+
+        console.log('[AutoPhoneCallListener] ✅ SillyTavern 事件监听已绑定');
+    },
+
+    /**
+     * 绑定 WebSocket 消息监听
+     */
+    bindWebSocketListener() {
+        if (window.TTS_Events && window.TTS_Events.on) {
+            window.TTS_Events.on('websocket_message', this.handleWebSocketMessage.bind(this));
+            console.log('[AutoPhoneCallListener] ✅ 已注册WebSocket消息监听');
+        } else {
+            console.warn('[AutoPhoneCallListener] ⚠️ TTS_Events未就绪,稍后重试');
+            setTimeout(() => this.bindWebSocketListener(), 1000);
+        }
+    },
+
+    /**
+     * 当角色页面加载完成时触发
+     * 
+     * 职责: 初始化 WebSocket 连接
+     * 不发送 webhook,避免与 CHARACTER_MESSAGE_RENDERED 重复
+     */
+    async onCharacterPageLoaded() {
+        try {
+            // 获取 SillyTavern 上下文 (此时数据已就绪)
+            const context = window.SillyTavern.getContext();
+            if (!context) {
+                console.warn('[AutoPhoneCallListener] ⚠️ 无法获取 SillyTavern 上下文');
+                return;
+            }
+
+            const { chat, characters, characterId } = context;
+
+            // 获取当前角色名称 (characterId 是字符串,需要在数组中查找)
+            const currentChar = characters?.find(c => c.avatar === characterId);
+            const charName = currentChar?.name || context.name2;
+            if (!charName) {
+                console.warn('[AutoPhoneCallListener] ⚠️ 无法获取角色名称');
+                return;
+            }
+
+            // 更新当前角色名称
+            this.currentCharName = charName;
+
+            // 建立 WebSocket 连接
+            WebSocketManager.connect(charName);
+
+            // 获取 chat_branch
+            const chatBranch = this.getCurrentChatBranch();
+
+            // 更新说话人列表
+            SpeakerManager.updateSpeakers(context, chatBranch).catch(err => {
+                console.warn('[AutoPhoneCallListener] ⚠️ 说话人更新失败:', err);
+            });
+
+            console.log(`[AutoPhoneCallListener] ✅ 聊天切换完成 - 角色: ${charName}, 分支: ${chatBranch}`);
+            console.log(`[AutoPhoneCallListener] ℹ️ WebSocket 已连接,等待 CHARACTER_MESSAGE_RENDERED 事件触发 webhook`);
+
+
+        } catch (error) {
+            console.error('[AutoPhoneCallListener] ❌ 处理聊天切换时出错:', error);
+        }
+    },
+
+    /**
+     * 当角色消息渲染完成时触发
+     */
+    async onCharacterMessageRendered(messageId) {
+        try {
+            // 获取 SillyTavern 上下文
+            const context = window.SillyTavern.getContext();
+            if (!context) {
+                console.warn('[AutoPhoneCallListener] ⚠️ 无法获取 SillyTavern 上下文');
+                return;
+            }
+
+            const { chat, characters, characterId } = context;
+
+            // 获取当前角色名称 (characterId 是字符串,需要在数组中查找)
+            const currentChar = characters?.find(c => c.avatar === characterId);
+            const charName = currentChar?.name || context.name2;
+            if (!charName) {
+                console.warn('[AutoPhoneCallListener] ⚠️ 无法获取角色名称');
+                return;
+            }
+
+            // 更新当前角色名称
+            this.currentCharName = charName;
+
+            // 建立 WebSocket 连接 (如果尚未连接)
+            WebSocketManager.connect(charName);
+
+            // 获取 chat_branch
+            const chatBranch = this.getCurrentChatBranch();
+
+            // 更新说话人列表 (异步,不阻塞)
+            SpeakerManager.updateSpeakers(context, chatBranch).catch(err => {
+                console.warn('[AutoPhoneCallListener] ⚠️ 说话人更新失败:', err);
+            });
+
+            // 查询当前对话的所有说话人
+            let speakers = [];
+            try {
+                const result = await window.TTS_API.getSpeakers(chatBranch);
+                speakers = result.speakers || [];
+                console.log(`[AutoPhoneCallListener] 📋 查询到 ${speakers.length} 个说话人:`, speakers);
+            } catch (error) {
+                console.warn('[AutoPhoneCallListener] ⚠️ 查询说话人失败,将使用空列表:', error);
+            }
+
+            // 计算当前楼层 (轮次)
+            const currentFloor = Math.floor(chat.length / 2);
+
+            // 提取最近的上下文消息 (最多10条)
+            const contextMessages = chat.slice(-10).map(msg => ({
+                name: msg.name || (msg.is_user ? context.name1 : charName),
+                is_user: msg.is_user || false,
+                mes: msg.mes || ""
+            }));
+
+            console.log(`[AutoPhoneCallListener] 📊 当前楼层: ${currentFloor}, 上下文消息数: ${contextMessages.length}, 说话人数: ${speakers.length}`);
+
+            // 发送 webhook 到后端
+            await this.sendWebhook(chatBranch, speakers, currentFloor, contextMessages);
+
+        } catch (error) {
+            console.error('[AutoPhoneCallListener] ❌ 处理角色消息时出错:', error);
+        }
+    },
+
+    /**
+     * 获取当前对话分支ID
+     */
+    getCurrentChatBranch() {
+        try {
+            if (window.TTS_Utils && window.TTS_Utils.getCurrentChatBranch) {
+                return window.TTS_Utils.getCurrentChatBranch();
+            }
+
+            // 回退方案
+            const context = window.SillyTavern.getContext();
+            if (context && context.chatId) {
+                return context.chatId.replace(/\.(jsonl|json)$/i, "");
+            }
+        } catch (e) {
+            console.error('[AutoPhoneCallListener] 获取 chat_branch 失败:', e);
+        }
+        return "default";
+    },
+
+    /**
+     * 发送 webhook 到后端
+     */
+    async sendWebhook(chatBranch, speakers, floor, context) {
+        try {
+            const apiHost = this.getApiHost();
+
+            // 构建请求数据
+            const requestData = {
+                chat_branch: chatBranch,
+                speakers: speakers,
+                current_floor: floor,
+                context: context
+            };
+
+            // 详细日志
+            console.log('[AutoPhoneCallListener] 📤 发送 Webhook:');
+            console.log('  - URL:', `${apiHost}/api/phone_call/webhook/message`);
+            console.log('  - chat_branch:', chatBranch);
+            console.log('  - speakers:', speakers);
+            console.log('  - current_floor:', floor);
+            console.log('  - context 条数:', context?.length || 0);
+            console.log('  - context 示例:', context?.slice(0, 2));
+            console.log('  - 完整数据:', requestData);
+
+            const response = await fetch(`${apiHost}/api/phone_call/webhook/message`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(requestData)
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                console.log('[AutoPhoneCallListener] ✅ Webhook 发送成功:', data);
+            } else {
+                const error = await response.text();
+                console.warn(`[AutoPhoneCallListener] ⚠️ Webhook 发送失败 (${response.status}):`, error);
+            }
+        } catch (error) {
+            console.error('[AutoPhoneCallListener] ❌ 发送 webhook 时出错:', error);
+        }
+    },
+
+    /**
+     * 处理WebSocket消息 (接收后端的LLM请求)
+     */
+    async handleWebSocketMessage(data) {
+        // 只处理llm_request类型的消息
+        if (data.type !== 'llm_request') {
+            return;
+        }
+
+        console.log('[AutoPhoneCallListener] 📥 收到LLM请求:', data);
+
+        const { call_id, char_name, prompt, llm_config, speakers, chat_branch } = data;
+
+        try {
+            // 显示通知
+            this.showNotification(`正在为 ${char_name} 生成主动电话...`);
+
+            // 调用LLM
+            console.log('[AutoPhoneCallListener] 🤖 调用LLM...');
+            const llmResponse = await LLM_Client.callLLM({
+                api_url: llm_config.api_url,
+                api_key: llm_config.api_key,
+                model: llm_config.model,
+                temperature: llm_config.temperature,
+                max_tokens: llm_config.max_tokens,
+                prompt: prompt
+            });
+
+            console.log('[AutoPhoneCallListener] ✅ LLM响应成功,长度:', llmResponse.length);
+
+            // 将结果发送回后端
+            console.log('[AutoPhoneCallListener] 📤 发送结果到后端...');
+            const apiHost = this.getApiHost();
+            const response = await fetch(`${apiHost}/api/phone_call/complete_generation`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    call_id: call_id,
+                    llm_response: llmResponse,
+                    chat_branch: chat_branch,
+                    speakers: speakers
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+            }
+
+            const result = await response.json();
+            console.log('[AutoPhoneCallListener] ✅ 生成完成:', result);
+
+            this.showNotification(`${result.selected_speaker} 的主动电话已生成!`, 'success');
+
+        } catch (error) {
+            console.error('[AutoPhoneCallListener] ❌ 处理失败:', error);
+            this.showNotification(`生成失败: ${error.message}`, 'error');
+        }
+    },
+
+    /**
+     * 获取 API Host
+     */
+    getApiHost() {
+        // 从 TTS_State 获取配置的 API Host
+        if (window.TTS_State && window.TTS_State.CACHE && window.TTS_State.CACHE.API_URL) {
+            return window.TTS_State.CACHE.API_URL;
+        }
+
+        // 回退到默认值
+        const apiHost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+            ? '127.0.0.1'
+            : window.location.hostname;
+
+        return `http://${apiHost}:3000`;
+    },
+
+    /**
+     * 显示通知
+     */
+    showNotification(message, type = 'info') {
+        console.log(`[AutoPhoneCallListener] [${type}] ${message}`);
+
+        // 如果有toastr,使用它
+        if (window.toastr) {
+            window.toastr[type](message);
+        }
+
+        // 也可以触发自定义事件
+        if (window.TTS_Events && window.TTS_Events.emit) {
+            window.TTS_Events.emit('auto_phone_call_notification', {
+                message: message,
+                type: type
+            });
+        }
+    }
+};
+
+// 自动初始化
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        AutoPhoneCallListener.init();
+    });
+} else {
+    AutoPhoneCallListener.init();
+}
+
+export default AutoPhoneCallListener;

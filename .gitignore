@@ -37,3 +37,7 @@ MyCharacters/*
 # data 目录包含 favorites.db 等用户数据
 data/
 !data/.gitkeep
+
+# --- 文档和临时文件 ---
+# docs 目录包含临时文档、日志等
+docs/

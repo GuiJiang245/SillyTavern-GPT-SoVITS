@@ -1,8 +1,10 @@
 import uvicorn
 import os
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 
 # 导入配置和路由
 from config import FRONTEND_DIR, init_settings
@@ -24,6 +26,25 @@ app.add_middleware(
     allow_credentials=True,  # 允许携带凭证
     expose_headers=["*"]  # 暴露所有响应头
 )
+
+# 添加验证错误处理器
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    print(f"\n[ValidationError] ❌ 请求验证失败:")
+    print(f"  - URL: {request.url}")
+    print(f"  - Method: {request.method}")
+    print(f"  - 错误详情: {exc.errors()}")
+    try:
+        body = await request.body()
+        print(f"  - 请求体: {body.decode('utf-8')}")
+    except:
+        pass
+    
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={"detail": exc.errors(), "body": str(exc.body)},
+    )
+
 
 # 2. 挂载静态文件 (前端界面)
 if os.path.exists(FRONTEND_DIR):
