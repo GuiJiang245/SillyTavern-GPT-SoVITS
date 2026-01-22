@@ -64,25 +64,25 @@ export const TTS_Events = {
             currentAudio = null;
         }
 
-        const resetAnim = () => {
-            $('.voice-bubble').removeClass('playing');
+        // 定义动画同步函数 (使用 filter 方法避免特殊字符导致选择器语法错误)
+        const setAnim = (active) => {
+            const func = active ? 'addClass' : 'removeClass';
+            // 使用 filter + 属性比较，避免 key 中的特殊字符破坏选择器
+            $('.voice-bubble').filter(function () {
+                return $(this).attr('data-key') === key;
+            })[func]('playing');
             $('iframe').each(function () {
-                try { $(this).contents().find('.voice-bubble').removeClass('playing'); } catch (e) { }
+                try {
+                    $(this).contents().find('.voice-bubble').filter(function () {
+                        return $(this).attr('data-key') === key;
+                    })[func]('playing');
+                } catch (e) { }
             });
         };
-        resetAnim();
 
         if (!audioUrl) return;
         const audio = new Audio(audioUrl);
         currentAudio = audio;
-
-        const setAnim = (active) => {
-            const func = active ? 'addClass' : 'removeClass';
-            $(`.voice-bubble[data-key='${key}']`)[func]('playing');
-            $('iframe').each(function () {
-                try { $(this).contents().find(`.voice-bubble[data-key='${key}']`)[func]('playing'); } catch (e) { }
-            });
-        };
 
         setAnim(true);
 
@@ -169,7 +169,44 @@ export const TTS_Events = {
                         $('#tts-new-char').val(charName);
                         $('#tts-new-model').focus();
                     }
-                    alert(`⚠ 角色 "${charName}" 尚未绑定 TTS 模型,请先为该角色配置。\n面板已自动打开,请选择模型并点击绑定。`);
+                    // 稍微延迟一下 alert，避免阻塞 UI 渲染
+                    setTimeout(() => {
+                        alert(`⚠️ 角色 "${charName}" 尚未绑定 TTS 模型。\n已为您自动填好角色名，请在右侧选择模型并点击"绑定"！`);
+                    }, 100);
+                    return;
+                }
+
+                // 无论是否缓存，先停止当前播放
+                if (CACHE.audioMemory[key]) {
+                    this.playAudio(key, CACHE.audioMemory[key]);
+                    return;
+                }
+
+                // 准备生成
+                if (CACHE.settings.enabled === false) { alert('TTS 插件已关闭'); return; }
+
+                // 尝试定位真实 DOM 按钮 (使用 filter 方法避免特殊字符导致选择器语法错误)
+                let $realBtn = null;
+                $('iframe').each(function () {
+                    try {
+                        const b = $(this).contents().find('.voice-bubble').filter(function () {
+                            return $(this).attr('data-key') === key;
+                        });
+                        if (b.length) $realBtn = b;
+                    } catch (e) { }
+                });
+                if (!$realBtn || !$realBtn.length) {
+                    $realBtn = $('.voice-bubble').filter(function () {
+                        return $(this).attr('data-key') === key;
+                    });
+                }
+
+                // 执行调度
+                if ($realBtn && $realBtn.length) {
+                    $realBtn.attr('data-key', key);
+                    $realBtn.removeClass('error').attr('data-status', 'waiting');
+                    Scheduler.addToQueue($realBtn);
+                    Scheduler.run();
                 } else {
                     $btn.removeClass('error');
                     $btn.data('auto-play-after-gen', true);

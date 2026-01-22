@@ -144,6 +144,9 @@ export const TTS_Scheduler = {
                     await this.switchModel(modelConfig);
                     for (const task of tasksToGenerate) await this.processSingleTask(task, modelConfig);
                 } catch (e) {
+                    console.error("模型切换或生成失败:", e);
+                    const errorMsg = e.message || "未知错误";
+                    window.TTS_Utils.showNotification(`❌ 模型切换失败: ${errorMsg}`, 'error');
                     tasksToGenerate.forEach(t => {
                         this.updateStatus(t.$btn, 'error');
                         CACHE.pendingTasks.delete(t.key);
@@ -230,11 +233,20 @@ export const TTS_Scheduler = {
                 $btn.attr('data-server-filename', filename);
                 console.log(`[TTS] 文件名已记录: ${filename}`);
             }
-            this.finishTask(key, URL.createObjectURL(blob));
+
+            // 【关键修复】先生成 URL 并写入 DOM，再更新状态
+            const audioUrl = URL.createObjectURL(blob);
+            $btn.attr('data-audio-url', audioUrl);  // 直接写入 DOM 属性
+            $btn.attr('data-key', key);             // 确保 key 也写入
+
+            this.finishTask(key, audioUrl);
             this.updateStatus($btn, 'ready');
 
         } catch (e) {
             console.error("生成失败:", e);
+            // 显示详细错误信息给用户
+            const errorMsg = e.message || "未知错误";
+            window.TTS_Utils.showNotification(`❌ TTS 生成失败: ${errorMsg}`, 'error');
             this.updateStatus($btn, 'error');
             CACHE.pendingTasks.delete(key);
         }
@@ -264,6 +276,8 @@ export const TTS_Scheduler = {
     },
 
     init() {
-        console.log("[Scheduler] 调度器已加载");
+        console.log("✅[Scheduler] 调度器已加载");
     }
 };
+
+

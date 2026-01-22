@@ -31,6 +31,22 @@ export const TTS_API = {
         const res = await fetch(this._url(`/tts_proxy?${query}`), {
             cache: 'no-store'
         });
+
+        if (!res.ok) {
+            // 尝试解析后端返回的详细错误信息
+            let errorMsg = `缓存检查失败 (${res.status})`;
+            try {
+                const errorData = await res.json();
+                if (errorData.detail) {
+                    errorMsg = errorData.detail;
+                }
+            } catch (parseError) {
+                // JSON 解析失败,使用默认错误信息
+                console.warn("无法解析错误响应:", parseError);
+            }
+            throw new Error(errorMsg);
+        }
+
         const data = await res.json();
         return {
             cached: data.cached === true,
@@ -44,8 +60,23 @@ export const TTS_API = {
         const res = await fetch(this._url(`/tts_proxy?${query}`), {
             cache: 'no-store'
         });
+
+        if (!res.ok) {
+            // 尝试解析后端返回的详细错误信息
+            let errorMsg = `TTS 生成失败 (${res.status})`;
+            try {
+                const errorData = await res.json();
+                if (errorData.detail) {
+                    errorMsg = errorData.detail;
+                }
+            } catch (parseError) {
+                // JSON 解析失败,使用默认错误信息
+                console.warn("无法解析错误响应:", parseError);
+            }
+            throw new Error(errorMsg);
+        }
+
         const filename = res.headers.get("X-Audio-Filename");
-        if (!res.ok) throw new Error("Generation Error");
         return {
             blob: await res.blob(),
             filename: filename
@@ -53,7 +84,22 @@ export const TTS_API = {
     },
 
     async switchWeights(endpoint, path) {
-        await fetch(this._url(`/${endpoint}?weights_path=${path}`));
+        const res = await fetch(this._url(`/${endpoint}?weights_path=${path}`));
+
+        if (!res.ok) {
+            // 尝试解析后端返回的详细错误信息
+            let errorMsg = `权重切换失败 (${res.status})`;
+            try {
+                const errorData = await res.json();
+                if (errorData.detail) {
+                    errorMsg = errorData.detail;
+                }
+            } catch (parseError) {
+                // JSON 解析失败,使用默认错误信息
+                console.warn("无法解析错误响应:", parseError);
+            }
+            throw new Error(errorMsg);
+        }
     },
 
     // === 缓存管理 ===
