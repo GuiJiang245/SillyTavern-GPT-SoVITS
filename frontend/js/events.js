@@ -176,7 +176,11 @@ export const TTS_Events = {
                     return;
                 }
 
-                // 无论是否缓存，先停止当前播放
+                // 获取或生成 key
+                const key = $btn.data('key') || Scheduler.getTaskKey(charName, $btn.data('text'));
+                $btn.attr('data-key', key);
+
+                // 无论是否缓存,先停止当前播放
                 if (CACHE.audioMemory[key]) {
                     this.playAudio(key, CACHE.audioMemory[key]);
                     return;
