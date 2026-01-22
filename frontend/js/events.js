@@ -33,12 +33,19 @@
             const audio = new Audio(audioUrl);
             currentAudio = audio;
 
-            // 4. 定义动画同步函数
+            // 4. 定义动画同步函数 (使用 filter 方法避免特殊字符导致选择器语法错误)
             const setAnim = (active) => {
                 const func = active ? 'addClass' : 'removeClass';
-                $(`.voice-bubble[data-key='${key}']`)[func]('playing');
+                // 使用 filter + 属性比较，避免 key 中的特殊字符破坏选择器
+                $('.voice-bubble').filter(function () {
+                    return $(this).attr('data-key') === key;
+                })[func]('playing');
                 $('iframe').each(function () {
-                    try { $(this).contents().find(`.voice-bubble[data-key='${key}']`)[func]('playing'); } catch (e) { }
+                    try {
+                        $(this).contents().find('.voice-bubble').filter(function () {
+                            return $(this).attr('data-key') === key;
+                        })[func]('playing');
+                    } catch (e) { }
                 });
             };
 
@@ -198,15 +205,21 @@
                 // 3. 准备生成
                 if (CACHE.settings.enabled === false) { alert('TTS 插件已关闭'); return; }
 
-                // 尝试定位真实 DOM 按钮
+                // 尝试定位真实 DOM 按钮 (使用 filter 方法避免特殊字符导致选择器语法错误)
                 let $realBtn = null;
                 $('iframe').each(function () {
                     try {
-                        const b = $(this).contents().find(`.voice-bubble[data-key='${key}']`);
+                        const b = $(this).contents().find('.voice-bubble').filter(function () {
+                            return $(this).attr('data-key') === key;
+                        });
                         if (b.length) $realBtn = b;
                     } catch (e) { }
                 });
-                if (!$realBtn || !$realBtn.length) $realBtn = $(`.voice-bubble[data-key='${key}']`);
+                if (!$realBtn || !$realBtn.length) {
+                    $realBtn = $('.voice-bubble').filter(function () {
+                        return $(this).attr('data-key') === key;
+                    });
+                }
 
                 // 4. 执行调度
                 if ($realBtn && $realBtn.length) {

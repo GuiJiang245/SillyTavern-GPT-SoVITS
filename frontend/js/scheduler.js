@@ -241,7 +241,13 @@
                     $btn.attr('data-server-filename', filename);
                     console.log(`[TTS] 文件名已记录: ${filename}`);
                 }
-                this.finishTask(key, URL.createObjectURL(blob));
+
+                // 【关键修复】先生成 URL 并写入 DOM，再更新状态
+                const audioUrl = URL.createObjectURL(blob);
+                $btn.attr('data-audio-url', audioUrl);  // 直接写入 DOM 属性
+                $btn.attr('data-key', key);             // 确保 key 也写入
+
+                this.finishTask(key, audioUrl);
                 this.updateStatus($btn, 'ready');
 
             } catch (e) {
