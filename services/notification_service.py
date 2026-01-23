@@ -73,7 +73,7 @@ class NotificationService:
         await cls.broadcast_to_char(char_name, message)
     
     @classmethod
-    async def notify_phone_call_ready(cls, char_name: str, call_id: int, segments: List[Dict], audio_path: Optional[str]):
+    async def notify_phone_call_ready(cls, char_name: str, call_id: int, segments: List[Dict], audio_path: Optional[str], audio_url: Optional[str] = None):
         """
         推送电话生成完成通知
         
@@ -82,6 +82,7 @@ class NotificationService:
             call_id: 电话记录ID
             segments: 情绪片段
             audio_path: 音频文件路径
+            audio_url: 音频 HTTP URL
         """
         message = {
             "type": "phone_call_ready",
@@ -89,6 +90,7 @@ class NotificationService:
             "call_id": call_id,
             "segments": segments,
             "audio_path": audio_path,
+            "audio_url": audio_url,
             "timestamp": asyncio.get_event_loop().time()
         }
         

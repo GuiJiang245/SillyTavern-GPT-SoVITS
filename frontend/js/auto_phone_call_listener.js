@@ -285,61 +285,132 @@ export const AutoPhoneCallListener = {
     },
 
     /**
-     * 处理WebSocket消息 (接收后端的LLM请求)
+     * 处理WebSocket消息 (接收后端的LLM请求和来电通知)
      */
     async handleWebSocketMessage(data) {
-        // 只处理llm_request类型的消息
-        if (data.type !== 'llm_request') {
-            return;
-        }
+        // 处理 LLM 请求
+        if (data.type === 'llm_request') {
+            console.log('[AutoPhoneCallListener] 📥 收到LLM请求:', data);
 
-        console.log('[AutoPhoneCallListener] 📥 收到LLM请求:', data);
+            const { call_id, char_name, prompt, llm_config, speakers, chat_branch } = data;
 
-        const { call_id, char_name, prompt, llm_config, speakers, chat_branch } = data;
+            try {
+                // 显示通知
+                this.showNotification(`正在为 ${char_name} 生成主动电话...`);
 
-        try {
-            // 显示通知
-            this.showNotification(`正在为 ${char_name} 生成主动电话...`);
+                // 调用LLM
+                console.log('[AutoPhoneCallListener] 🤖 调用LLM...');
+                const llmResponse = await LLM_Client.callLLM({
+                    api_url: llm_config.api_url,
+                    api_key: llm_config.api_key,
+                    model: llm_config.model,
+                    temperature: llm_config.temperature,
+                    max_tokens: llm_config.max_tokens,
+                    prompt: prompt
+                });
 
-            // 调用LLM
-            console.log('[AutoPhoneCallListener] 🤖 调用LLM...');
-            const llmResponse = await LLM_Client.callLLM({
-                api_url: llm_config.api_url,
-                api_key: llm_config.api_key,
-                model: llm_config.model,
-                temperature: llm_config.temperature,
-                max_tokens: llm_config.max_tokens,
-                prompt: prompt
-            });
+                console.log('[AutoPhoneCallListener] ✅ LLM响应成功,长度:', llmResponse.length);
+                console.log('[AutoPhoneCallListener] LLM响应内容 (前500字符):', llmResponse.substring(0, 500));
 
-            console.log('[AutoPhoneCallListener] ✅ LLM响应成功,长度:', llmResponse.length);
+                // 将结果发送回后端
+                console.log('[AutoPhoneCallListener] 📤 发送结果到后端...');
+                const apiHost = this.getApiHost();
 
-            // 将结果发送回后端
-            console.log('[AutoPhoneCallListener] 📤 发送结果到后端...');
-            const apiHost = this.getApiHost();
-            const response = await fetch(`${apiHost}/api/phone_call/complete_generation`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
+                const requestData = {
                     call_id: call_id,
                     llm_response: llmResponse,
                     chat_branch: chat_branch,
                     speakers: speakers
-                })
-            });
+                };
 
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+                console.log('[AutoPhoneCallListener] 发送数据:', {
+                    call_id: call_id,
+                    llm_response_length: llmResponse.length,
+                    llm_response_preview: llmResponse.substring(0, 200),
+                    chat_branch: chat_branch,
+                    speakers: speakers
+                });
+
+                const response = await fetch(`${apiHost}/api/phone_call/complete_generation`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestData)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+                }
+
+                const result = await response.json();
+                console.log('[AutoPhoneCallListener] ✅ 生成完成:', result);
+
+                this.showNotification(`${result.selected_speaker} 的主动电话已生成!`, 'success');
+
+            } catch (error) {
+                console.error('[AutoPhoneCallListener] ❌ 处理失败:', error);
+                this.showNotification(`生成失败: ${error.message}`, 'error');
+            }
+            return;
+        }
+
+        // 处理来电通知
+        if (data.type === 'phone_call_ready') {
+            console.log('[AutoPhoneCallListener] 📞 收到来电通知:', data);
+
+            const { call_id, char_name, segments, audio_path, audio_url } = data;
+
+            // 将相对路径转换为完整 API URL
+            const apiHost = this.getApiHost();
+            const fullAudioUrl = audio_url ? `${apiHost}${audio_url}` : (audio_path ? `${apiHost}${audio_path}` : null);
+
+            console.log('[AutoPhoneCallListener] 🎵 音频 URL 转换:');
+            console.log('  - 原始 audio_url:', audio_url);
+            console.log('  - 完整 URL:', fullAudioUrl);
+
+            // 存储来电数据
+            window.TTS_IncomingCall = {
+                call_id,
+                char_name,
+                segments,
+                audio_path,
+                audio_url: fullAudioUrl  // 使用完整 URL
+            };
+
+            console.log('[AutoPhoneCallListener] ✅ 来电数据已存储到 window.TTS_IncomingCall:', window.TTS_IncomingCall);
+
+            // 触发悬浮球震动 (同时支持桌面版和移动版)
+            const $managerBtn = $('#tts-manager-btn');  // 桌面版
+            const $mobileTrigger = $('#tts-mobile-trigger');  // 移动版
+
+            console.log('[AutoPhoneCallListener] 🔍 查找悬浮球元素:');
+            console.log('  - 桌面版 (#tts-manager-btn):', $managerBtn.length);
+            console.log('  - 移动版 (#tts-mobile-trigger):', $mobileTrigger.length);
+
+            let triggered = false;
+
+            // 桌面版悬浮球
+            if ($managerBtn.length) {
+                $managerBtn.addClass('incoming-call');
+                $managerBtn.attr('title', `${char_name} 来电中...`);
+                console.log('[AutoPhoneCallListener] ✅ 桌面版悬浮球震动已触发,当前class:', $managerBtn.attr('class'));
+                triggered = true;
             }
 
-            const result = await response.json();
-            console.log('[AutoPhoneCallListener] ✅ 生成完成:', result);
+            // 移动版悬浮球
+            if ($mobileTrigger.length) {
+                $mobileTrigger.addClass('incoming-call');
+                $mobileTrigger.attr('title', `${char_name} 来电中...`);
+                console.log('[AutoPhoneCallListener] ✅ 移动版悬浮球震动已触发,当前class:', $mobileTrigger.attr('class'));
+                triggered = true;
+            }
 
-            this.showNotification(`${result.selected_speaker} 的主动电话已生成!`, 'success');
+            if (!triggered) {
+                console.warn('[AutoPhoneCallListener] ⚠️ 悬浮球元素不存在,无法触发震动');
+                console.warn('[AutoPhoneCallListener] 💡 提示:请确保 TTS_UI 已初始化并创建了悬浮球');
+            }
 
-        } catch (error) {
-            console.error('[AutoPhoneCallListener] ❌ 处理失败:', error);
-            this.showNotification(`生成失败: ${error.message}`, 'error');
+            // 显示通知
+            this.showNotification(`📞 ${char_name} 来电!`, 'info');
         }
     },
 

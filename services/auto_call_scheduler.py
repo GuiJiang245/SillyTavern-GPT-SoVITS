@@ -43,6 +43,30 @@ class AutoCallScheduler:
             print(f"[AutoCallScheduler] 该楼层已生成过: 楼层{trigger_floor}")
             return None
         
+        # 检查是否存在卡住的记录 (generating/pending 状态)
+        # 如果存在,删除后重新创建,允许重试
+        conn = self.db._get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                "SELECT id, status FROM auto_phone_calls WHERE trigger_floor = ?",
+                (trigger_floor,)
+            )
+            existing = cursor.fetchone()
+            
+            if existing:
+                existing_id, existing_status = existing
+                if existing_status in ['generating', 'pending']:
+                    print(f"[AutoCallScheduler] 检测到卡住的记录: ID={existing_id}, status={existing_status}, 删除后重试")
+                    cursor.execute("DELETE FROM auto_phone_calls WHERE id = ?", (existing_id,))
+                    conn.commit()
+                elif existing_status == 'failed':
+                    print(f"[AutoCallScheduler] 检测到失败的记录: ID={existing_id}, 删除后重试")
+                    cursor.execute("DELETE FROM auto_phone_calls WHERE id = ?", (existing_id,))
+                    conn.commit()
+        finally:
+            conn.close()
+        
         # 创建数据库记录(char_name 初始为 None,等 LLM 选择后更新)
         call_id = self.db.add_auto_phone_call(
             trigger_floor=trigger_floor,
@@ -101,16 +125,20 @@ class AutoCallScheduler:
             
             print(f"[AutoCallScheduler] ✅ Prompt构建完成: {len(prompt)} 字符")
             
+            # 选择 WebSocket 路由目标 (使用第一个 speaker)
+            # 注意: 这只是用于推送消息,真正决定谁打电话的是 LLM
+            primary_speaker = speakers[0] if speakers else "Unknown"
+            
             # 第二阶段: 通过WebSocket通知前端调用LLM
             from services.notification_service import NotificationService
             notification_service = NotificationService()
             
             await notification_service.notify_llm_request(
                 call_id=call_id,
-                char_name=primary_speaker,
+                char_name=primary_speaker,  # 仅用于 WebSocket 路由
                 prompt=prompt,
                 llm_config=llm_config,
-                speakers=speakers,
+                speakers=speakers,  # 完整的 speakers 列表,供 LLM 选择
                 chat_branch=chat_branch
             )
             
@@ -132,9 +160,9 @@ class AutoCallScheduler:
             # 移除运行中标记
             self._running_tasks.discard(task_key)
     
-    async def _save_audio(self, call_id: int, char_name: str, audio_data: bytes, audio_format: str) -> str:
+    async def _save_audio(self, call_id: int, char_name: str, audio_data: bytes, audio_format: str) -> tuple:
         """
-        保存音频文件
+        保存音频文件并返回路径和 URL
         
         Args:
             call_id: 任务ID
@@ -143,7 +171,7 @@ class AutoCallScheduler:
             audio_format: 音频格式
             
         Returns:
-            音频文件路径
+            tuple: (音频文件路径, HTTP URL)
         """
         import os
         import base64
@@ -170,8 +198,13 @@ class AutoCallScheduler:
         with open(audio_path, "wb") as f:
             f.write(audio_data)
         
+        # 生成 HTTP URL (相对路径)
+        relative_path = f"{char_name}/{filename}"
+        audio_url = f"/auto_call_audio/{relative_path}"
+        
         print(f"[AutoCallScheduler] 音频已保存: {audio_path}")
-        return audio_path
+        print(f"[AutoCallScheduler] 音频 URL: {audio_url}")
+        return audio_path, audio_url
     
     def get_running_tasks(self) -> List[tuple]:
         """获取正在执行的任务列表"""

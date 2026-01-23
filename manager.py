@@ -67,6 +67,46 @@ else:
 
 os.makedirs("data/favorites_audio", exist_ok=True)
 app.mount("/favorites", StaticFiles(directory="data/favorites_audio"), name="favorites")
+
+# 挂载主动电话音频目录 - 使用自定义路由处理中文路径
+from config import init_settings
+from fastapi.responses import FileResponse
+from urllib.parse import unquote
+
+cache_dir = init_settings().get("cache_dir", "Cache")
+auto_call_audio_dir = os.path.join(cache_dir, "auto_phone_calls")
+os.makedirs(auto_call_audio_dir, exist_ok=True)
+
+# 自定义路由处理 URL 编码的中文路径
+@app.get("/auto_call_audio/{speaker_name}/{filename}")
+async def serve_auto_call_audio(speaker_name: str, filename: str):
+    """
+    提供自动电话音频文件
+    
+    手动解码 URL 路径以支持中文字符
+    """
+    # URL 解码
+    speaker_name = unquote(speaker_name)
+    filename = unquote(filename)
+    
+    # 构建文件路径
+    file_path = os.path.join(auto_call_audio_dir, speaker_name, filename)
+    
+    # 检查文件是否存在
+    if not os.path.exists(file_path):
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail=f"音频文件不存在: {speaker_name}/{filename}")
+    
+    # 返回文件
+    return FileResponse(
+        file_path,
+        media_type="audio/wav",
+        headers={
+            "Cache-Control": "public, max-age=3600",
+            "Access-Control-Allow-Origin": "*"
+        }
+    )
+
 # 3. 注册路由
 app.include_router(data.router, tags=["Data Management"])
 app.include_router(tts.router, tags=["TTS Core"])

@@ -744,6 +744,67 @@ body[data-bubble-style="kawaii"] .voice-bubble.loading {
     transform: translateY(-1px);
 }
 
+/* 来电震动动画 */
+#tts-manager-btn.incoming-call {
+    animation: phone-vibrate 0.5s ease-in-out infinite, phone-glow 1.5s ease-in-out infinite;
+}
+
+@keyframes phone-vibrate {
+
+    0%,
+    100% {
+        transform: translateX(0) rotate(0deg);
+    }
+
+    10% {
+        transform: translateX(-2px) rotate(-2deg);
+    }
+
+    20% {
+        transform: translateX(2px) rotate(2deg);
+    }
+
+    30% {
+        transform: translateX(-2px) rotate(-1deg);
+    }
+
+    40% {
+        transform: translateX(2px) rotate(1deg);
+    }
+
+    50% {
+        transform: translateX(-1px) rotate(-2deg);
+    }
+
+    60% {
+        transform: translateX(1px) rotate(2deg);
+    }
+
+    70% {
+        transform: translateX(-2px) rotate(-1deg);
+    }
+
+    80% {
+        transform: translateX(2px) rotate(1deg);
+    }
+
+    90% {
+        transform: translateX(-1px) rotate(0deg);
+    }
+}
+
+@keyframes phone-glow {
+
+    0%,
+    100% {
+        box-shadow: 0 0 10px rgba(102, 126, 234, 0.5), 0 0 20px rgba(102, 126, 234, 0.3);
+    }
+
+    50% {
+        box-shadow: 0 0 20px rgba(102, 126, 234, 0.8), 0 0 30px rgba(102, 126, 234, 0.5), 0 0 40px rgba(102, 126, 234, 0.3);
+    }
+}
+
 /* --- 通知条 --- */
 #tts-notification-bar {
     position: fixed;

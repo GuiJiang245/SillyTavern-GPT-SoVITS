@@ -52,12 +52,22 @@ class DatabaseManager:
                 trigger_floor INTEGER NOT NULL,
                 segments TEXT NOT NULL,
                 audio_path TEXT,
+                audio_url TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 status TEXT DEFAULT 'pending',
                 error_message TEXT,
                 UNIQUE(trigger_floor)
             )
         ''')
+        
+        # 数据库迁移:为现有表添加 audio_url 字段(如果不存在)
+        try:
+            cursor.execute("SELECT audio_url FROM auto_phone_calls LIMIT 1")
+        except sqlite3.OperationalError:
+            # 字段不存在,添加它
+            print("[Database] 迁移: 添加 audio_url 字段到 auto_phone_calls 表")
+            cursor.execute("ALTER TABLE auto_phone_calls ADD COLUMN audio_url TEXT")
+            conn.commit()
         
         # 创建 conversation_speakers 表 - 对话说话人记录
         cursor.execute('''

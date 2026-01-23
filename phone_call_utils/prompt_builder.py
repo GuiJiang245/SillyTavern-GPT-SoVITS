@@ -6,7 +6,7 @@ class PromptBuilder:
     """提示词构建工具"""
     
     # 默认 JSON 格式 Prompt 模板
-    DEFAULT_JSON_TEMPLATE = """You are an AI assistant helping to determine which character should make a phone call based on the conversation context.
+    DEFAULT_JSON_TEMPLATE = """You are an AI assistant helping to determine which character should make a phone call based on the conversation context.必须模仿电话的这种形式，电话内容必须合理且贴切，必须要有一件或者多个电话主题，围绕这个主题展开电话内容。
 
 **Available Speakers and Their Emotions:**
 {{speakers_emotions}}
@@ -39,8 +39,7 @@ class PromptBuilder:
 **Field Requirements**:
 - **speaker**: MUST be one of the available speakers listed above ({{speakers}})
 - **emotion**: must be one of the emotions available for the selected speaker
-- **text**: what to say in English, make it natural and emotional
-  * Keep each segment SHORT and NATURAL - don't force long sentences
+- **text**: what to say in Chinese,必须中文说话内容, make it natural and emotional，开头用符合角色身份跟主角关系的问候语，要像真实打电话一样。
   * Use multiple short segments instead of one long segment
 - **pause_after**: pause duration after this segment (0.2-0.8 seconds, null for default 0.3s)
   * Use longer pauses (0.7-0.8s) for major emotion transitions

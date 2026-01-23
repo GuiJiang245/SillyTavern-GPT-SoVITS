@@ -27,6 +27,112 @@ export const TTS_Mobile = window.TTS_Mobile;
     }
 
     const APPS = {
+        'incoming_call': {
+            name: '来电',
+            icon: '📞',
+            bg: '#667eea',
+            render: async (container) => {
+                const callData = window.TTS_IncomingCall;
+                if (!callData) {
+                    container.html(`
+                        <div style="display:flex; flex-direction:column; height:100%; align-items:center; justify-content:center; color:#888;">
+                            <div style="font-size:24px; margin-bottom:10px;">📞</div>
+                            <div>没有来电</div>
+                        </div>
+                    `);
+                    return;
+                }
+
+                container.empty();
+
+                const $content = $(`
+                    <div style="width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; 
+                                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color:white;">
+                        
+                        <div style="font-size:80px; margin-bottom:30px;">📞</div>
+                        <div style="font-size:32px; font-weight:bold; margin-bottom:15px;">${callData.char_name}</div>
+                        <div style="font-size:18px; opacity:0.9; margin-bottom:60px;">来电中...</div>
+                        
+                        <div style="display:flex; gap:40px; justify-content:center;">
+                            <button id="mobile-reject-call-btn" style="
+                                width:80px; 
+                                height:80px; 
+                                border-radius:50%; 
+                                border:none; 
+                                background:#ef4444; 
+                                color:white; 
+                                font-size:36px; 
+                                cursor:pointer;
+                                box-shadow:0 4px 20px rgba(239,68,68,0.5);
+                                transition:all 0.2s;">
+                                ✕
+                            </button>
+                            <button id="mobile-answer-call-btn" style="
+                                width:80px; 
+                                height:80px; 
+                                border-radius:50%; 
+                                border:none; 
+                                background:#10b981; 
+                                color:white; 
+                                font-size:36px; 
+                                cursor:pointer;
+                                box-shadow:0 4px 20px rgba(16,185,129,0.5);
+                                transition:all 0.2s;">
+                                ✓
+                            </button>
+                        </div>
+                    </div>
+                `);
+
+                container.append($content);
+
+                // 按钮悬停效果
+                $content.find('button').hover(
+                    function () { $(this).css('transform', 'scale(1.1)'); },
+                    function () { $(this).css('transform', 'scale(1)'); }
+                );
+
+                // 拒绝来电
+                $content.find('#mobile-reject-call-btn').click(function () {
+                    console.log('[Mobile] 用户拒绝来电');
+                    delete window.TTS_IncomingCall;
+                    $('#tts-manager-btn').removeClass('incoming-call').attr('title', '🔊 TTS配置');
+                    $('#tts-mobile-trigger').removeClass('incoming-call');
+                    // 返回主屏幕
+                    $('#mobile-home-btn').click();
+                });
+
+                // 接听来电
+                $content.find('#mobile-answer-call-btn').click(function () {
+                    console.log('[Mobile] 用户接听来电');
+
+                    // 播放音频
+                    if (callData.audio_url) {
+                        const audio = new Audio(callData.audio_url);
+                        audio.play().catch(err => {
+                            console.error('[Mobile] 音频播放失败:', err);
+                            alert('音频播放失败,请检查 URL: ' + callData.audio_url);
+                        });
+
+                        audio.onended = function () {
+                            console.log('[Mobile] 音频播放完成');
+                            delete window.TTS_IncomingCall;
+                            $('#tts-manager-btn').removeClass('incoming-call').attr('title', '🔊 TTS配置');
+                            $('#tts-mobile-trigger').removeClass('incoming-call');
+                            // 返回主屏幕
+                            $('#mobile-home-btn').click();
+                        };
+                    } else {
+                        console.warn('[Mobile] 没有音频 URL');
+                        delete window.TTS_IncomingCall;
+                        $('#tts-manager-btn').removeClass('incoming-call').attr('title', '🔊 TTS配置');
+                        $('#tts-mobile-trigger').removeClass('incoming-call');
+                        // 返回主屏幕
+                        $('#mobile-home-btn').click();
+                    }
+                });
+            }
+        },
         'settings': {
             name: '系统设置',
             icon: '⚙️',
@@ -1085,6 +1191,24 @@ export const TTS_Mobile = window.TTS_Mobile;
     }
 
     function togglePhone() {
+        // 优先检查是否有来电
+        if (window.TTS_IncomingCall) {
+            console.log('[Mobile] 检测到来电,打开小手机并显示来电界面');
+            // 移除震动效果
+            $('#tts-mobile-trigger').removeClass('incoming-call');
+            $('#tts-manager-btn').removeClass('incoming-call');
+
+            // 打开小手机
+            if (!STATE.isOpen) {
+                openPhone();
+            }
+
+            // 打开来电应用
+            scope.openApp('incoming_call');
+            return;
+        }
+
+        // 正常的打开/关闭手机逻辑
         if (STATE.isOpen) closePhone();
         else openPhone();
     }

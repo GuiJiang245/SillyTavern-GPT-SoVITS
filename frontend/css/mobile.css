@@ -261,6 +261,67 @@
     }
 }
 
+/* 来电震动动画 (移动版) */
+#tts-mobile-trigger.incoming-call {
+    animation: phone-vibrate-mobile 0.5s ease-in-out infinite, phone-glow-mobile 1.5s ease-in-out infinite !important;
+}
+
+@keyframes phone-vibrate-mobile {
+
+    0%,
+    100% {
+        transform: translateY(-50%) translateX(0) rotate(0deg);
+    }
+
+    10% {
+        transform: translateY(-50%) translateX(-2px) rotate(-2deg);
+    }
+
+    20% {
+        transform: translateY(-50%) translateX(2px) rotate(2deg);
+    }
+
+    30% {
+        transform: translateY(-50%) translateX(-2px) rotate(-1deg);
+    }
+
+    40% {
+        transform: translateY(-50%) translateX(2px) rotate(1deg);
+    }
+
+    50% {
+        transform: translateY(-50%) translateX(-1px) rotate(-2deg);
+    }
+
+    60% {
+        transform: translateY(-50%) translateX(1px) rotate(2deg);
+    }
+
+    70% {
+        transform: translateY(-50%) translateX(-2px) rotate(-1deg);
+    }
+
+    80% {
+        transform: translateY(-50%) translateX(2px) rotate(1deg);
+    }
+
+    90% {
+        transform: translateY(-50%) translateX(-1px) rotate(0deg);
+    }
+}
+
+@keyframes phone-glow-mobile {
+
+    0%,
+    100% {
+        box-shadow: 0 0 10px rgba(102, 126, 234, 0.5), 0 0 20px rgba(102, 126, 234, 0.3);
+    }
+
+    50% {
+        box-shadow: 0 0 20px rgba(102, 126, 234, 0.8), 0 0 30px rgba(102, 126, 234, 0.5), 0 0 40px rgba(102, 126, 234, 0.3);
+    }
+}
+
 
 /* --- 新增的按键样式 --- */
 /* 1. 红色电源键 (关闭按钮) */

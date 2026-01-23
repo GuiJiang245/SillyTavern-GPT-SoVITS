@@ -340,12 +340,34 @@ async def complete_generation(req: CompleteGenerationRequest):
         import json
         
         print(f"\n[CompleteGeneration] 收到LLM响应: call_id={req.call_id}")
+        print(f"[CompleteGeneration] LLM响应长度: {len(req.llm_response)} 字符")
+        print(f"[CompleteGeneration] LLM响应内容 (前500字符): {req.llm_response[:500]}")
         
         db = DatabaseManager()
         scheduler = AutoCallScheduler()
         
+        # 清理 markdown 代码块 (如果存在)
+        llm_response_cleaned = req.llm_response.strip()
+        
+        # 检测并移除 markdown 代码块标记
+        import re
+        # 匹配 ```json ... ``` 或 ``` ... ```
+        markdown_pattern = r'^```(?:json)?\s*\n(.*?)\n```$'
+        match = re.match(markdown_pattern, llm_response_cleaned, re.DOTALL)
+        
+        if match:
+            llm_response_cleaned = match.group(1).strip()
+            print(f"[CompleteGeneration] 检测到 markdown 代码块,已清理")
+            print(f"[CompleteGeneration] 清理后内容 (前500字符): {llm_response_cleaned[:500]}")
+        
         # 解析LLM响应
-        response_data = json.loads(req.llm_response)
+        try:
+            response_data = json.loads(llm_response_cleaned)
+            print(f"[CompleteGeneration] ✅ JSON解析成功")
+        except json.JSONDecodeError as e:
+            print(f"[CompleteGeneration] ❌ JSON解析失败: {str(e)}")
+            print(f"[CompleteGeneration] 完整响应内容: {llm_response_cleaned}")
+            raise ValueError(f"LLM响应不是有效的JSON格式: {str(e)}")
         selected_speaker = response_data.get("speaker")
         
         # 验证说话人
@@ -358,13 +380,15 @@ async def complete_generation(req: CompleteGenerationRequest):
         emotion_service = EmotionService()
         available_emotions = emotion_service.get_available_emotions(selected_speaker)
         
-        # 解析情绪片段
+        # 解析情绪片段 - 使用 JSON 解析器
         parser = ResponseParser()
         settings = load_json(SETTINGS_FILE)
         parser_config = settings.get("phone_call", {}).get("response_parser", {})
         
-        segments = parser.parse_emotion_segments(
-            req.llm_response,
+        # 使用 parse_json_response 而不是 parse_emotion_segments
+        # 因为 LLM 返回的是 JSON 格式
+        segments = parser.parse_json_response(
+            llm_response_cleaned,  # 使用清理后的响应
             parser_config,
             available_emotions=available_emotions
         )
@@ -418,12 +442,13 @@ async def complete_generation(req: CompleteGenerationRequest):
         
         # 合并音频
         audio_path = None
+        audio_url = None
         if audio_bytes_list:
             print(f"[CompleteGeneration] 合并 {len(audio_bytes_list)} 段音频...")
             merged_audio = audio_merger.merge_segments(audio_bytes_list, audio_merge_config)
             
-            # 保存音频
-            audio_path = await scheduler._save_audio(
+            # 保存音频并获取 URL
+            audio_path, audio_url = await scheduler._save_audio(
                 req.call_id,
                 selected_speaker,
                 merged_audio,
@@ -435,14 +460,14 @@ async def complete_generation(req: CompleteGenerationRequest):
         cursor = conn.cursor()
         try:
             cursor.execute(
-                "UPDATE auto_phone_calls SET status = ?, char_name = ?, audio_path = ?, segments = ? WHERE id = ?",
-                ("completed", selected_speaker, audio_path, json.dumps([seg.dict() for seg in segments], ensure_ascii=False), req.call_id)
+                "UPDATE auto_phone_calls SET status = ?, char_name = ?, audio_path = ?, audio_url = ?, segments = ? WHERE id = ?",
+                ("completed", selected_speaker, audio_path, audio_url, json.dumps([seg.dict() for seg in segments], ensure_ascii=False), req.call_id)
             )
             conn.commit()
         finally:
             conn.close()
         
-        print(f"[CompleteGeneration] ✅ 生成完成: call_id={req.call_id}, speaker={selected_speaker}, audio={audio_path}")
+        print(f"[CompleteGeneration] ✅ 生成完成: call_id={req.call_id}, speaker={selected_speaker}, audio={audio_path}, url={audio_url}")
         
         # 通知前端完成
         from services.notification_service import NotificationService
@@ -451,7 +476,8 @@ async def complete_generation(req: CompleteGenerationRequest):
             char_name=selected_speaker,
             call_id=req.call_id,
             segments=[seg.dict() for seg in segments],
-            audio_path=audio_path
+            audio_path=audio_path,
+            audio_url=audio_url
         )
         
         # 移除运行中标记(使用 trigger_floor)
@@ -474,11 +500,40 @@ async def complete_generation(req: CompleteGenerationRequest):
             "call_id": req.call_id,
             "selected_speaker": selected_speaker,
             "segments": [seg.dict() for seg in segments],
-            "audio_path": audio_path
+            "audio_path": audio_path,
+            "audio_url": audio_url
         }
         
     except Exception as e:
         print(f"[CompleteGeneration] ❌ 失败: {str(e)}")
+        
+        # 更新状态为 failed
+        try:
+            db.update_auto_call_status(
+                call_id=req.call_id,
+                status="failed",
+                error_message=str(e)
+            )
+            print(f"[CompleteGeneration] 已更新状态为 failed")
+        except Exception as update_error:
+            print(f"[CompleteGeneration] 更新状态失败: {str(update_error)}")
+        
+        # 移除运行中标记
+        try:
+            conn = db._get_connection()
+            cursor = conn.cursor()
+            try:
+                cursor.execute("SELECT trigger_floor FROM auto_phone_calls WHERE id = ?", (req.call_id,))
+                row = cursor.fetchone()
+                if row and hasattr(scheduler, '_running_tasks'):
+                    trigger_floor = row[0]
+                    scheduler._running_tasks.discard(trigger_floor)
+                    print(f"[CompleteGeneration] 已移除运行中任务: 楼层{trigger_floor}")
+            finally:
+                conn.close()
+        except Exception as cleanup_error:
+            print(f"[CompleteGeneration] 清理运行中标记失败: {str(cleanup_error)}")
+        
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -509,7 +564,8 @@ def _select_ref_audio(char_name: str, emotion: str) -> Optional[Dict]:
     
     model_folder = mappings[char_name]
     base_dir, _ = get_current_dirs()
-    ref_dir = os.path.join(base_dir, model_folder, "reference_audios", "English", "emotions")
+    # 直接使用 reference_audios 目录,不添加子目录
+    ref_dir = os.path.join(base_dir, model_folder, "reference_audios","Chinese", "emotions")
     
     if not os.path.exists(ref_dir):
         print(f"[_select_ref_audio] 错误: 参考音频目录不存在: {ref_dir}")
@@ -780,3 +836,73 @@ async def websocket_phone_call(websocket: WebSocket, char_name: str):
         print(f"[WebSocket] 错误: {char_name}, {str(e)}")
     finally:
         await NotificationService.unregister_connection(char_name, websocket)
+
+
+# ==================== 测试接口 ====================
+
+class TestTriggerRequest(BaseModel):
+    """测试触发请求"""
+    speakers: List[str]  # 说话人列表
+    trigger_floor: int  # 触发楼层
+    chat_branch: Optional[str] = "test_branch"  # 对话分支ID,默认为测试分支
+    context_count: Optional[int] = 30  # 从当前对话中提取的上下文数量
+
+
+@router.post("/phone_call/test/trigger_auto_call")
+async def test_trigger_auto_call(req: TestTriggerRequest):
+    """
+    测试接口: 手动触发自动电话生成
+    
+    用于开发测试,直接触发自动调度,无需等待 webhook
+    
+    Args:
+        req: 包含说话人列表、触发楼层等信息
+        
+    Returns:
+        调度结果
+    """
+    try:
+        from services.auto_call_scheduler import AutoCallScheduler
+        from services.conversation_monitor import ConversationMonitor
+        
+        print(f"\n[TestTrigger] 手动触发测试:")
+        print(f"  - speakers: {req.speakers}")
+        print(f"  - trigger_floor: {req.trigger_floor}")
+        print(f"  - chat_branch: {req.chat_branch}")
+        print(f"  - context_count: {req.context_count}")
+        
+        # 从 SillyTavern 获取当前对话上下文
+        # 注意: 这里需要前端传递上下文,因为后端无法直接访问 SillyTavern 的对话数据
+        # 所以我们使用一个简单的模拟上下文
+        monitor = ConversationMonitor()
+        
+        # 模拟上下文 (实际使用时,前端应该传递真实的对话上下文)
+        context = [
+            {"name": "User", "is_user": True, "mes": "你好"},
+            {"name": req.speakers[0] if req.speakers else "角色", "is_user": False, "mes": "你好!有什么可以帮你的吗?"}
+        ]
+        
+        # 调度生成任务
+        scheduler = AutoCallScheduler()
+        call_id = await scheduler.schedule_auto_call(
+            chat_branch=req.chat_branch,
+            speakers=req.speakers,
+            trigger_floor=req.trigger_floor,
+            context=context
+        )
+        
+        if call_id is None:
+            return {
+                "status": "duplicate",
+                "message": f"该楼层已生成或正在生成中: 楼层{req.trigger_floor}"
+            }
+        
+        return {
+            "status": "success",
+            "call_id": call_id,
+            "message": f"✅ 测试触发成功: call_id={call_id}, speakers={req.speakers} @ 楼层{req.trigger_floor}"
+        }
+        
+    except Exception as e:
+        print(f"[TestTrigger] ❌ 错误: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
