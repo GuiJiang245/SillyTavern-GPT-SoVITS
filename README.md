@@ -87,6 +87,7 @@
 * **指纹机制**:基于消息 ID 和内容哈希生成唯一指纹 (`m{mesid}_{content_hash}`),精准匹配和管理语音数据。
 * **Iframe 兼容**:通过 `window.SillyTavern.getContext().chat` API 获取消息数据,完美支持美化卡的 Iframe 环境。
 
+赞助我，支持插件继续开发更多功能：https://afdian.com/a/2742159495abc
 ---
 
 ## 🛠️ 前置要求
