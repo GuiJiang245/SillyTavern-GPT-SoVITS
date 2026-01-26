@@ -60,6 +60,7 @@ class CompleteGenerationRequest(BaseModel):
     llm_response: str
     chat_branch: str
     speakers: List[str]
+    char_name: Optional[str] = None  # 主角色卡名称，用于 WebSocket 推送路由
 
 
 class LLMTestRequest(BaseModel):
@@ -522,10 +523,14 @@ async def complete_generation(req: CompleteGenerationRequest):
         print(f"[CompleteGeneration] ✅ 生成完成: call_id={req.call_id}, speaker={selected_speaker}, audio={audio_path}, url={audio_url}")
         
         # 通知前端完成
+        # WebSocket 推送目标: 优先使用前端传递的主角色名,回退到 selected_speaker
+        ws_target = req.char_name if req.char_name else selected_speaker
+        print(f"[CompleteGeneration] WebSocket 推送目标: {ws_target}")
+        
         from services.notification_service import NotificationService
         notification_service = NotificationService()
         await notification_service.notify_phone_call_ready(
-            char_name=selected_speaker,
+            char_name=ws_target,  # 使用主角色卡名称进行 WebSocket 路由
             call_id=req.call_id,
             segments=[seg.dict() for seg in segments],
             audio_path=audio_path,

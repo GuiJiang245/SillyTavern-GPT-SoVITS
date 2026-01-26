@@ -373,7 +373,8 @@ export const AutoPhoneCallListener = {
                     call_id: call_id,
                     llm_response: llmResponse,
                     chat_branch: chat_branch,
-                    speakers: speakers
+                    speakers: speakers,
+                    char_name: char_name  // 主角色卡名称，用于 WebSocket 推送路由
                 };
 
                 console.log('[AutoPhoneCallListener] 发送数据:', {
