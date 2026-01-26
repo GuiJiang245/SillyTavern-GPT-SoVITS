@@ -75,12 +75,25 @@ class PhoneCallService:
         # 2. 提取上下文数据
         extracted_data = self.data_extractor.extract(context, extractors)
         
-        # 3. 获取所有说话人的可用情绪
+        # 3. 获取所有说话人的可用情绪 (跳过未绑定模型的角色)
         speakers_emotions = {}
+        valid_speakers = []
         for speaker in speakers:
-            emotions = self.emotion_service.get_available_emotions(speaker)
-            speakers_emotions[speaker] = emotions
-            print(f"[PhoneCallService] {speaker} 可用情绪: {emotions}")
+            try:
+                emotions = self.emotion_service.get_available_emotions(speaker)
+                speakers_emotions[speaker] = emotions
+                valid_speakers.append(speaker)
+                print(f"[PhoneCallService] {speaker} 可用情绪: {emotions}")
+            except Exception as e:
+                print(f"[PhoneCallService] ⚠️ 跳过角色 {speaker}: {e}")
+        
+        # 如果所有角色都未绑定，终止
+        if not valid_speakers:
+            from fastapi import HTTPException
+            raise HTTPException(status_code=400, detail="所有角色都未绑定模型，无法生成电话")
+        
+        # 更新speakers为有效的说话人列表
+        speakers = valid_speakers
         
         # 4. 构建提示词 (包含说话人和情绪信息)
         prompt = self.prompt_builder.build(
