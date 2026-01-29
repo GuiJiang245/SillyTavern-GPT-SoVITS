@@ -70,13 +70,12 @@ class SceneAnalyzer:
         max_context_messages: int = 10,
         char_name: str = None,
         user_name: str = None
-    ) -> SceneAnalysisResult:
+    ) -> Dict:
         """
-        分析当前场景状态（简化版 - 使用规则引擎）
+        构建场景分析请求（异步版）
         
-        由于 LLM 需要通过前端调用，这里使用简化的规则引擎进行分析：
-        - 如果有 2+ 个 NPC 角色在场 → eavesdrop
-        - 其他情况 → phone_call
+        由于 LLM 需要通过前端调用，此方法只构建 prompt 和配置，
+        实际分析需要前端调用 LLM 后通过 /api/scene_analysis/complete 返回结果
         
         Args:
             context: 对话上下文
@@ -86,34 +85,36 @@ class SceneAnalyzer:
             user_name: 用户名称
             
         Returns:
-            SceneAnalysisResult
+            包含 prompt、llm_config 的字典，供 NotificationService 使用
         """
-        print(f"[SceneAnalyzer] 开始场景分析: {len(context)}条上下文, {len(speakers)}个角色")
+        print(f"[SceneAnalyzer] 构建场景分析请求: {len(context)}条上下文, {len(speakers)}个角色")
         
-        # 简化分析逻辑：基于角色数量判断
-        npc_speakers = [s for s in speakers if s != user_name] if user_name else speakers
+        # 构建场景分析 Prompt
+        prompt = self.prompt_builder.build_scene_analysis_prompt(
+            context=context,
+            speakers=speakers,
+            max_context_messages=max_context_messages,
+            user_name=user_name
+        )
         
-        if len(npc_speakers) >= 2:
-            # 多个 NPC 在场 → 对话追踪
-            result = SceneAnalysisResult(
-                characters_present=npc_speakers,
-                character_left=None,
-                private_conversation_likely=True,
-                suggested_action="eavesdrop",
-                reason=f"检测到 {len(npc_speakers)} 个 NPC 角色在场，触发对话追踪"
-            )
-        else:
-            # 单个 NPC → 主动电话
-            result = SceneAnalysisResult(
-                characters_present=npc_speakers,
-                character_left=None,
-                private_conversation_likely=False,
-                suggested_action="phone_call",
-                reason=f"单个 NPC 角色在场，触发主动电话"
-            )
+        # 读取 LLM 配置
+        settings = load_json(SETTINGS_FILE)
+        phone_call_config = settings.get("phone_call", {})
+        llm_config = phone_call_config.get("llm", {})
         
-        print(f"[SceneAnalyzer] ✅ 分析完成: action={result.suggested_action}, reason={result.reason}")
-        return result
+        print(f"[SceneAnalyzer] ✅ 场景分析 Prompt 构建完成: {len(prompt)} 字符")
+        
+        return {
+            "prompt": prompt,
+            "llm_config": {
+                "api_url": llm_config.get("api_url"),
+                "api_key": llm_config.get("api_key"),
+                "model": llm_config.get("model"),
+                "temperature": 0.3,  # 场景分析使用低温度确保稳定性
+                "max_tokens": 500    # 分析结果不需要太长
+            },
+            "speakers": speakers
+        }
     
     def parse_llm_response(self, response: str, speakers: List[str]) -> SceneAnalysisResult:
         """

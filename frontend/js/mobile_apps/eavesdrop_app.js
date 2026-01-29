@@ -3,6 +3,8 @@
  * 处理对话监听界面、监听播放、历史记录
  */
 
+import { ChatInjector } from '../chat_injector.js';
+
 /**
  * 渲染对话追踪 App
  * @param {jQuery} container - App 容器
@@ -42,8 +44,24 @@ export async function render(container, createNavbar) {
         });
 
         // 监听
-        $content.find('#eavesdrop-listen-btn').click(function () {
+        $content.find('#eavesdrop-listen-btn').click(async function () {
             console.log('[Eavesdrop] 用户开始监听');
+
+            // 🆕 注入对话追踪内容到聊天
+            try {
+                await ChatInjector.injectAsMessage({
+                    type: 'eavesdrop',
+                    segments: eavesdropData.segments || [],
+                    speakers: eavesdropData.speakers || [],
+                    callId: eavesdropData.record_id,
+                    audioUrl: eavesdropData.audio_url,
+                    sceneDescription: eavesdropData.scene_description
+                });
+                console.log('[Eavesdrop] ✅ 对话追踪内容已注入聊天');
+            } catch (error) {
+                console.error('[Eavesdrop] ❌ 注入聊天失败:', error);
+            }
+
             showListeningUI(container, eavesdropData);
         });
 

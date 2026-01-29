@@ -106,20 +106,71 @@ class NotificationService:
         await cls.broadcast_to_char(char_name, message)
     
     @classmethod
-    async def notify_phone_call_ready(cls, char_name: str, call_id: int, segments: List[Dict], audio_path: Optional[str], audio_url: Optional[str] = None):
+    async def notify_scene_analysis_request(
+        cls, 
+        request_id: str,
+        char_name: str, 
+        prompt: str, 
+        llm_config: Dict, 
+        speakers: List[str], 
+        chat_branch: str,
+        trigger_floor: int,
+        context_fingerprint: str,
+        context: List[Dict],
+        user_name: Optional[str] = None
+    ):
+        """
+        推送场景分析 LLM 请求通知
+        
+        通知前端调用 LLM 进行场景分析，前端调用后将结果发送到 /api/scene_analysis/complete
+        
+        Args:
+            request_id: 请求唯一ID
+            char_name: 角色名称 (用于WebSocket路由)
+            prompt: LLM提示词
+            llm_config: LLM配置
+            speakers: 说话人列表
+            chat_branch: 对话分支ID
+            trigger_floor: 触发楼层
+            context_fingerprint: 上下文指纹
+            context: 对话上下文
+            user_name: 用户名
+        """
+        message = {
+            "type": "scene_analysis_request",
+            "request_id": request_id,
+            "char_name": char_name,
+            "prompt": prompt,
+            "llm_config": llm_config,
+            "speakers": speakers,
+            "chat_branch": chat_branch,
+            "trigger_floor": trigger_floor,
+            "context_fingerprint": context_fingerprint,
+            "context": context,
+            "user_name": user_name,
+            "timestamp": asyncio.get_event_loop().time()
+        }
+        
+        print(f"[NotificationService] 📤 通知前端调用LLM(场景分析): request_id={request_id}, speakers={speakers}")
+        await cls.broadcast_to_char(char_name, message)
+    
+    @classmethod
+    async def notify_phone_call_ready(cls, char_name: str, call_id: int, segments: List[Dict], audio_path: Optional[str], audio_url: Optional[str] = None, selected_speaker: Optional[str] = None):
         """
         推送电话生成完成通知
         
         Args:
-            char_name: 角色名称
+            char_name: 角色名称 (用于 WebSocket 路由)
             call_id: 电话记录ID
             segments: 情绪片段
             audio_path: 音频文件路径
             audio_url: 音频 HTTP URL
+            selected_speaker: LLM 选择的实际打电话人 (可能与 char_name 不同)
         """
         message = {
             "type": "phone_call_ready",
             "char_name": char_name,
+            "selected_speaker": selected_speaker or char_name,  # 实际打电话人
             "call_id": call_id,
             "segments": segments,
             "audio_path": audio_path,
