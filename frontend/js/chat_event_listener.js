@@ -19,6 +19,8 @@ import { CharacterStateManager } from './character_state_manager.js';
 import { SceneAnalyzer } from './scene_analyzer.js';
 import { TriggerSystem, TriggerHelpers } from './trigger_system.js';
 import { PhoneCallAPIClient } from './phone_call_api_client.js';
+import { ContinuousAnalysisHandler } from './continuous_analysis_handler.js';
+import { LiveActionHandler } from './live_action_handler.js';
 
 export const ChatEventListener = {
     // 当前角色名称
@@ -102,12 +104,22 @@ export const ChatEventListener = {
         // 创建路由器
         this.messageRouter = new WebSocketMessageRouter();
 
-        // 注册消息处理器
+        // 注册LLM请求处理器
         this.messageRouter.registerHandler('llm_request', LLMRequestCoordinator.handleLLMRequest.bind(LLMRequestCoordinator));
         this.messageRouter.registerHandler('scene_analysis_request', LLMRequestCoordinator.handleSceneAnalysis.bind(LLMRequestCoordinator));
         this.messageRouter.registerHandler('eavesdrop_llm_request', LLMRequestCoordinator.handleEavesdrop.bind(LLMRequestCoordinator));
+
+        // 注册通知处理器
         this.messageRouter.registerHandler('phone_call_ready', NotificationHandler.handlePhoneCallReady.bind(NotificationHandler));
         this.messageRouter.registerHandler('eavesdrop_ready', NotificationHandler.handleEavesdropReady.bind(NotificationHandler));
+
+        // 注册持续性分析处理器
+        const continuousAnalysisHandler = new ContinuousAnalysisHandler();
+        this.messageRouter.registerHandler('continuous_analysis_request', (msg) => continuousAnalysisHandler.handle(msg));
+
+        // 注册活人感行动处理器
+        const liveActionHandler = new LiveActionHandler();
+        this.messageRouter.registerHandler('live_action_triggered', (msg) => liveActionHandler.handle(msg));
 
         console.log('[ChatEventListener] ✅ 消息路由初始化完成');
     },
@@ -259,18 +271,17 @@ export const ChatEventListener = {
             // 建立 WebSocket 连接 (如果尚未连接)
             WebSocketManager.connect(charName);
 
-            // 1. 采集数据并发送 webhook
+            // 采集数据并发送 webhook (后端统一分析系统会处理触发判断)
             await ContextDataCollector.collectAndSendWebhook();
 
-            // 2. 触发场景分析 (异步,不阻塞)
-            this.sceneAnalyzer.analyzeLatestMessage().catch(err => {
-                console.warn('[ChatEventListener] ⚠️ 场景分析失败:', err);
-            });
+            // 注意: 场景分析已整合到后端统一分析流程中
+            // 不再在前端独立调用 sceneAnalyzer.analyzeLatestMessage()
 
         } catch (error) {
             console.error('[ChatEventListener] ❌ 处理角色消息时出错:', error);
         }
     }
+
 };
 
 // 自动初始化

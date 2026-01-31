@@ -209,19 +209,27 @@ ${conversationText}
      * @returns {Object} - LLM 配置
      */
     getLLMConfig() {
-        // 从 TTS_State 获取配置
-        if (window.TTS_State && window.TTS_State.CACHE && window.TTS_State.CACHE.LLM_CONFIG) {
-            return window.TTS_State.CACHE.LLM_CONFIG;
+        // 从 TTS_State.CACHE.settings.phone_call.llm 获取配置
+        if (window.TTS_State?.CACHE?.settings?.phone_call?.llm) {
+            const llmConfig = window.TTS_State.CACHE.settings.phone_call.llm;
+            console.log('[SceneAnalyzer] 📝 使用配置的 LLM 设置:', llmConfig);
+            return llmConfig;
         }
 
-        // 回退到默认配置
-        return {
-            api_url: 'http://localhost:5001/v1/chat/completions',
-            api_key: 'sk-xxx',
-            model: 'gpt-4',
-            temperature: 0.7,
-            max_tokens: 1000
-        };
+        // 没有配置时报错，提示用户去配置
+        const errorMsg = '❌ 未找到 LLM 配置，请在 TTS 管理面板中配置 LLM API';
+        console.error('[SceneAnalyzer]', errorMsg);
+
+        // 使用 toastr 显示错误提示
+        if (window.toastr) {
+            window.toastr.error(errorMsg, 'LLM 配置缺失', {
+                timeOut: 10000,
+                extendedTimeOut: 5000,
+                closeButton: true
+            });
+        }
+
+        throw new Error(errorMsg);
     }
 }
 
