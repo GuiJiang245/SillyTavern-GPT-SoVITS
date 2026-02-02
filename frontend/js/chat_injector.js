@@ -6,6 +6,7 @@
 
 // 模块级状态
 let _initialized = false;
+let _initializing = false;  // 防止并发初始化
 
 export const ChatInjector = {
     /**
@@ -13,16 +14,19 @@ export const ChatInjector = {
      * 应在扩展加载时调用一次
      */
     init() {
-        if (_initialized) {
-            console.log('[ChatInjector] 已初始化，跳过');
+        if (_initialized || _initializing) {
+            console.log('[ChatInjector] 已初始化或正在初始化，跳过');
             return;
         }
 
         const context = window.SillyTavern?.getContext?.();
         if (!context) {
             console.warn('[ChatInjector] ⚠️ SillyTavern 上下文未就绪，延迟初始化');
-            // 延迟重试
-            setTimeout(() => this.init(), 1000);
+            _initializing = true;  // 标记为正在初始化，阻止并发
+            setTimeout(() => {
+                _initializing = false;  // 重试前清除
+                this.init();
+            }, 1000);
             return;
         }
 
