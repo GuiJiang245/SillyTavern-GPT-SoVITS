@@ -37,7 +37,7 @@ class LiveCharacterEngine:
         
         print(f"[LiveCharacterEngine] 初始化完成 - 阈值: {self.threshold}")
     
-    def build_analysis_prompt(self, context: List[Dict], speakers: List[str], call_history: List[Dict] = None) -> str:
+    def build_analysis_prompt(self, context: List[Dict], speakers: List[str], call_history: List[Dict] = None, chat_branch: str = None) -> str:
         """
         构建开放式角色状态分析的LLM Prompt (含触发建议)
         
@@ -45,6 +45,7 @@ class LiveCharacterEngine:
             context: 对话上下文
             speakers: 说话人列表
             call_history: 近期通话历史（可选）
+            chat_branch: 对话分支ID（用于查询触发历史）
             
         Returns:
             LLM Prompt
@@ -111,6 +112,50 @@ class LiveCharacterEngine:
                 history_lines.append(f"- {caller}：{content_preview}...")
             call_history_text = "\n".join(history_lines)
         
+        # ✅ 查询触发历史（用于多样性判断）- 使用指纹而非分支
+        trigger_history_text = "无历史触发记录"
+        diversity_guidance = ""
+        
+        # 从 context 中提取指纹列表
+        fingerprints = []
+        for msg in context:
+            fp = msg.get("fingerprint") or msg.get("fp")
+            if fp:
+                fingerprints.append(fp)
+        
+        if fingerprints:
+            trigger_history = self.db.get_recent_trigger_history(fingerprints=fingerprints, limit=5)
+            if trigger_history:
+                # 格式化触发历史
+                history_items = []
+                phone_call_count = 0
+                eavesdrop_count = 0
+                none_count = 0
+                
+                for item in trigger_history:
+                    action = item.get("action", "none")
+                    char = item.get("character", "")
+                    
+                    if action == "phone_call":
+                        phone_call_count += 1
+                        history_items.append(f"phone_call({char or '未知'})")
+                    elif action == "eavesdrop":
+                        eavesdrop_count += 1
+                        history_items.append("eavesdrop")
+                    else:
+                        none_count += 1
+                        history_items.append("none")
+                
+                trigger_history_text = "最近触发: " + ", ".join(history_items)
+                
+                # 根据历史生成多样性指导
+                if phone_call_count >= 2:
+                    diversity_guidance = "⚠️ 最近已有多次电话触发，为保持新鲜感，请优先考虑 eavesdrop（偷听对话）或 none"
+                elif none_count >= 3:
+                    diversity_guidance = "💡 最近较少触发事件，如果场景合适可以适当放宽触发条件"
+                elif eavesdrop_count == 0 and len(trigger_history) >= 3:
+                    diversity_guidance = "💡 还未触发过 eavesdrop，如果有2+角色在场且可能有私下对话，这是个好机会"
+        
         prompt = f"""
 请以JSON格式分析当前场景中每个角色的状态，并判断是否应该触发特殊事件。
 
@@ -122,6 +167,10 @@ class LiveCharacterEngine:
 
 # 近期通话历史（供判断参考，避免重复）
 {call_history_text}
+
+# 触发历史（多样性参考）
+{trigger_history_text}
+{diversity_guidance}
 
 # 分析要求
 对每个角色,请提供以下维度的分析:
@@ -154,7 +203,7 @@ class LiveCharacterEngine:
 
 # 场景触发建议
 
-## 电话触发判断（重要！）
+## 电话触发判断
 判断是否有角色想给用户打电话，**不限于离场场景**。以下情况都可能触发：
 - 角色离场后想联系用户
 - 角色在场但有特别想说的话（叮嘱、表白、倾诉）
@@ -168,8 +217,16 @@ class LiveCharacterEngine:
 3. 参考上面的通话历史，避免相同角色短时间内重复打电话
 4. 如果多个角色都想打，选择当前场景下最合适的那个
 
-## 偷听触发判断
-当2+角色在场且可能有私下对话时触发
+## 偷听触发判断（重要！这是独特体验）
+当2+有语音功能的角色在场时，考虑触发 eavesdrop（用户"偷听"角色私下对话）。
+适合触发的场景：
+- 角色间有未说出口的心思或秘密
+- 角色在讨论与用户相关的事情
+- 角色之间有戏剧张力（争执、八卦、密谋）
+- 用户刚离开，角色开始私下交流
+- 场景有"关上门后的对话"氛围
+
+⚠️ eavesdrop 是让用户获得"上帝视角"的特殊体验，不要轻易放过合适的场景！
 
 # 输出格式
 {{

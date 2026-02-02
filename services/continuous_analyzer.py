@@ -109,8 +109,8 @@ class ContinuousAnalyzer:
             if last_analysis:
                 print(f"[ContinuousAnalyzer] 📊 查询到最近分析记录: 楼层={last_analysis.get('floor')}")
             
-            # 使用LiveCharacterEngine构建Prompt（传入通话历史）
-            prompt = self.live_engine.build_analysis_prompt(context, speakers, call_history)
+            # 使用LiveCharacterEngine构建Prompt（传入通话历史和分支ID）
+            prompt = self.live_engine.build_analysis_prompt(context, speakers, call_history, chat_branch)
             
             print(f"[ContinuousAnalyzer] 活人感分析Prompt已构建,等待 LLM 响应...")
             
@@ -334,14 +334,16 @@ class ContinuousAnalyzer:
                     print(f"[ContinuousAnalyzer] ❌ 行动处理失败: {action_type}")
 
     
-    def get_character_trajectory(self, chat_branch: str, character_name: str, limit: int = None) -> List[Dict]:
+    def get_character_trajectory(self, character_name: str, limit: int = None, 
+                                    chat_branch: str = None, fingerprints: List[str] = None) -> List[Dict]:
         """
         获取角色的历史轨迹 (智能筛选,用于LLM)
         
         Args:
-            chat_branch: 对话分支ID
             character_name: 角色名称
             limit: 返回记录数量限制(None使用llm_context_limit)
+            chat_branch: 对话分支ID (已弃用，仅作后备)
+            fingerprints: 上下文指纹列表 (优先使用)
             
         Returns:
             角色历史轨迹列表(压缩版,只包含关键信息)
@@ -349,8 +351,13 @@ class ContinuousAnalyzer:
         if limit is None:
             limit = self.llm_context_limit
         
-        # 获取原始历史
-        history = self.db.get_character_history(chat_branch, character_name, limit)
+        # 获取原始历史 - 优先使用指纹
+        history = self.db.get_character_history(
+            character_name=character_name, 
+            limit=limit, 
+            chat_branch=chat_branch, 
+            fingerprints=fingerprints
+        )
         
         # 压缩数据(只保留关键信息)
         compressed = []
