@@ -130,23 +130,52 @@ def init_settings():
         if deep_merge(phone_call_defaults, settings["phone_call"]):
             dirty = True
 
-    # analysis_llm 默认配置 - 用于统一分析系统
-    analysis_llm_defaults = {
-        "api_url": "",
-        "api_key": "",
-        "model": "",
-        "temperature": 0.8,
-        "max_tokens": 5000
+    # analysis_engine 默认配置 - 分析引擎独立配置
+    analysis_engine_defaults = {
+        "enabled": True,
+        "analysis_interval": 3,          # 每几楼层分析一次
+        "max_history_records": 100,       # 最大历史记录数
+        "llm_context_limit": 10,          # 发给 LLM 的历史记录数量
+        "trigger_threshold": 60,          # 行动触发阈值 (0-100)
+        "llm": {
+            "api_url": "",
+            "api_key": "",
+            "model": "",
+            "temperature": 0.8,
+            "max_tokens": 5000
+        }
     }
     
-    if "analysis_llm" not in settings:
-        settings["analysis_llm"] = analysis_llm_defaults
+    if "analysis_engine" not in settings:
+        settings["analysis_engine"] = analysis_engine_defaults
         dirty = True
     else:
-        if deep_merge(analysis_llm_defaults, settings["analysis_llm"]):
+        if deep_merge(analysis_engine_defaults, settings["analysis_engine"]):
             dirty = True
-
-    phone_call = settings["phone_call"]
+    
+    # 迁移旧配置（兼容性处理）
+    if "analysis_llm" in settings:
+        # 如果用户有旧的 analysis_llm 配置，迁移到 analysis_engine.llm
+        old_llm = settings.pop("analysis_llm")
+        if deep_merge(old_llm, settings["analysis_engine"]["llm"]):
+            pass  # 合并旧配置到新位置
+        dirty = True
+    
+    # 迁移 phone_call 中的旧分析配置
+    phone_call = settings.get("phone_call", {})
+    if "continuous_analysis" in phone_call:
+        old_ca = phone_call.pop("continuous_analysis")
+        settings["analysis_engine"]["analysis_interval"] = old_ca.get("analysis_interval", 3)
+        settings["analysis_engine"]["max_history_records"] = old_ca.get("max_history_records", 100)
+        settings["analysis_engine"]["llm_context_limit"] = old_ca.get("llm_context_limit", 10)
+        dirty = True
+    if "live_character" in phone_call:
+        old_lc = phone_call.pop("live_character")
+        settings["analysis_engine"]["trigger_threshold"] = old_lc.get("threshold", 60)
+        dirty = True
+    if "smart_trigger" in phone_call:
+        phone_call.pop("smart_trigger")  # 已废弃，直接删除
+        dirty = True
 
 
     if dirty:

@@ -18,13 +18,13 @@ class LiveCharacterEngine:
     def __init__(self):
         self.db = DatabaseManager()
         
-        # 加载配置
+        # 加载配置 - 从 analysis_engine 读取
         settings = load_json(SETTINGS_FILE)
-        self.config = settings.get("phone_call", {}).get("live_character", {})
+        self.config = settings.get("analysis_engine", {})
         
         # 默认配置
         self.enabled = self.config.get("enabled", True)
-        self.threshold = self.config.get("threshold", 60)
+        self.threshold = self.config.get("trigger_threshold", 60)
         
         # 行动类型处理器注册表
         self.action_handlers = {

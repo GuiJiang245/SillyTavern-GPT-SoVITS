@@ -25,9 +25,9 @@ class ContinuousAnalyzer:
         self.scene_analyzer = SceneAnalyzer()
         self.live_engine = LiveCharacterEngine()
         
-        # 加载配置
+        # 加载配置 - 从 analysis_engine 读取
         settings = load_json(SETTINGS_FILE)
-        self.config = settings.get("continuous_analysis", {})
+        self.config = settings.get("analysis_engine", {})
         
         # 默认配置
         self.enabled = self.config.get("enabled", True)
@@ -115,10 +115,10 @@ class ContinuousAnalyzer:
             print(f"[ContinuousAnalyzer] 活人感分析Prompt已构建,等待 LLM 响应...")
             
             # 返回数据供前端调用 LLM
-            # 从 analysis_llm 配置读取 LLM 设置
+            # 从 analysis_engine.llm 配置读取 LLM 设置
             from config import load_json, SETTINGS_FILE
             settings = load_json(SETTINGS_FILE)
-            analysis_llm = settings.get("analysis_llm", {})
+            analysis_llm = settings.get("analysis_engine", {}).get("llm", {})
             
             return {
                 "type": "continuous_analysis_request",
