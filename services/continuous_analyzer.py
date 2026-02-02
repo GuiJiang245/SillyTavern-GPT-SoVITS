@@ -84,10 +84,25 @@ class ContinuousAnalyzer:
         try:
             print(f"[ContinuousAnalyzer] 开始分析楼层 {floor}: {chat_branch}")
             
-            # 查询历史通话记录（用于避免重复电话）
-            call_history = self.db.get_auto_call_history_by_chat_branch(chat_branch, limit=5)
-            if call_history:
-                print(f"[ContinuousAnalyzer] 📞 查询到 {len(call_history)} 条通话历史")
+            # 从 context 中提取历史消息指纹列表
+            fingerprints = []
+            for msg in context:
+                fp = msg.get("fingerprint") or msg.get("fp")
+                if fp:
+                    fingerprints.append(fp)
+            
+            # 查询历史通话记录（优先用指纹，支持跨分支匹配）
+            call_history = []
+            if fingerprints:
+                call_history = self.db.get_auto_call_history_by_fingerprints(fingerprints, limit=5)
+                if call_history:
+                    print(f"[ContinuousAnalyzer] 📞 根据指纹查询到 {len(call_history)} 条通话历史")
+            
+            if not call_history:
+                # 回退：用 chat_branch 查询
+                call_history = self.db.get_auto_call_history_by_chat_branch(chat_branch, limit=5)
+                if call_history:
+                    print(f"[ContinuousAnalyzer] 📞 根据分支查询到 {len(call_history)} 条通话历史")
             
             # 查询历史分析记录（获取离场角色等信息）
             last_analysis = self.db.get_latest_analysis(chat_branch)

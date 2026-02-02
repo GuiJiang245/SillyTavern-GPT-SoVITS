@@ -125,6 +125,11 @@ export const ChatEventListener = {
         const liveActionHandler = new LiveActionHandler();
         this.messageRouter.registerHandler('live_action_triggered', (msg) => liveActionHandler.handle(msg));
 
+        // 注册分析完成通知处理器（仅记录日志，实际触发逻辑由其他消息处理）
+        this.messageRouter.registerHandler('continuous_analysis_complete', (msg) => {
+            console.log(`[ChatEventListener] ✅ 分析完成: floor=${msg.floor}, action=${msg.suggested_action}`);
+        });
+
         console.log('[ChatEventListener] ✅ 消息路由初始化完成');
     },
 
