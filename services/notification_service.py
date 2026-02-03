@@ -80,7 +80,8 @@ class NotificationService:
     @classmethod
     async def notify_eavesdrop_llm_request(cls, record_id: int, char_name: str, prompt: str, 
                                             llm_config: Dict, speakers: List[str], 
-                                            chat_branch: str, scene_description: Optional[str] = None):
+                                            chat_branch: str, scene_description: Optional[str] = None,
+                                            text_lang: str = "zh"):
         """
         推送对话追踪LLM调用请求通知
         
@@ -94,6 +95,7 @@ class NotificationService:
             speakers: 说话人列表
             chat_branch: 对话分支ID
             scene_description: 场景描述
+            text_lang: TTS 文本语言配置
         """
         message = {
             "type": "eavesdrop_llm_request",
@@ -104,6 +106,7 @@ class NotificationService:
             "speakers": speakers,
             "chat_branch": chat_branch,
             "scene_description": scene_description,
+            "text_lang": text_lang,
             "timestamp": asyncio.get_event_loop().time()
         }
         

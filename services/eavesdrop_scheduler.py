@@ -165,6 +165,11 @@ class EavesdropScheduler:
             from services.notification_service import NotificationService
             notification_service = NotificationService()
             
+            # 读取 TTS 配置中的语言设置
+            settings = load_json(SETTINGS_FILE) or {}
+            tts_config = settings.get("tts", {})
+            text_lang = tts_config.get("text_lang", "zh")
+            
             await notification_service.notify_eavesdrop_llm_request(
                 record_id=record_id,
                 char_name=ws_target,
@@ -172,7 +177,8 @@ class EavesdropScheduler:
                 llm_config=llm_config,
                 speakers=speakers,
                 chat_branch=chat_branch,
-                scene_description=scene_description
+                scene_description=scene_description,
+                text_lang=text_lang
             )
             
             print(f"[EavesdropScheduler] ✅ 已通知前端调用LLM: record_id={record_id}")
