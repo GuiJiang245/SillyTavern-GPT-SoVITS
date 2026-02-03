@@ -156,6 +156,11 @@ class EavesdropScheduler:
             llm_config = result.get("llm_config")
             
             print(f"[EavesdropScheduler] ✅ Prompt构建完成: {len(prompt)} 字符")
+            print(f"[EavesdropScheduler] 📝 完整 LLM 请求内容:")
+            print(f"========== PROMPT START ==========")
+            print(prompt)
+            print(f"========== PROMPT END ==========")
+            print(f"[EavesdropScheduler] 🔧 LLM 配置: {llm_config}")
             
             # WebSocket 路由目标
             ws_target = char_name if char_name else (speakers[0] if speakers else "Unknown")
