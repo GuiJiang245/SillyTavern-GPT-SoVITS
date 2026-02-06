@@ -1,5 +1,0 @@
-fix(mobile): 来电记录点击播放无反应 + 系统设置空白处无法滑动
-
-- 手机端屏幕内触摸不再触发手机壳拖拽，避免吃掉点击与滚动
-- 来电记录列表增加 touchend 绑定，确保触屏可进回放
-- #mobile-screen-content 增加 touch-action: pan-y 以保障竖向滑动
