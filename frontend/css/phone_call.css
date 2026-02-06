@@ -1,6 +1,23 @@
 /* ========================================
    来电与通话界面样式
+   现已支持跟随气泡风格主题变化
    ======================================== */
+
+/* ========================================
+   来电界面默认变量 (回退值)
+   ======================================== */
+:root {
+    --call-bg: var(--s-play-bg, linear-gradient(135deg, #667eea 0%, #764ba2 100%));
+    --call-color: var(--s-play-color, #fff);
+    --call-accent: var(--s-ready-bg, #dcedc8);
+    --call-avatar-glow: var(--s-play-shadow, 0 8px 32px rgba(102, 126, 234, 0.6));
+    --call-wave-color: var(--wave-bar-playing, #3b82f6);
+    --call-font: var(--bubble-font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+    
+    /* 通话中界面深色背景 */
+    --call-dark-bg: var(--s-load-bg, #1e293b);
+    --call-dark-color: var(--s-load-color, #94a3b8);
+}
 
 /* 来电界面容器 */
 .incoming-call-container {
@@ -10,10 +27,26 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
+    background: var(--call-bg);
+    color: var(--call-color);
+    font-family: var(--call-font);
     position: relative;
     overflow: hidden;
+}
+
+/* 支持自定义背景图片 */
+.incoming-call-container[data-custom-bg="true"] {
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.incoming-call-container[data-custom-bg="true"]::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 0;
 }
 
 /* 背景动画效果 */
@@ -24,16 +57,14 @@
     height: 200%;
     background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
     animation: pulse-bg 3s ease-in-out infinite;
+    z-index: 0;
 }
 
 @keyframes pulse-bg {
-
-    0%,
-    100% {
+    0%, 100% {
         transform: scale(1);
         opacity: 0.3;
     }
-
     50% {
         transform: scale(1.1);
         opacity: 0.5;
@@ -52,9 +83,10 @@
     align-items: center;
     justify-content: center;
     font-size: 60px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    box-shadow: 0 8px 32px rgba(102, 126, 234, 0.6);
+    background: var(--call-bg);
+    box-shadow: var(--call-avatar-glow);
     overflow: hidden;
+    border: 3px solid rgba(255, 255, 255, 0.3);
 }
 
 .call-icon img {
@@ -65,16 +97,13 @@
 }
 
 @keyframes avatar-ring {
-
-    0%,
-    100% {
+    0%, 100% {
         transform: scale(1);
-        box-shadow: 0 8px 32px rgba(102, 126, 234, 0.6);
+        box-shadow: var(--call-avatar-glow);
     }
-
     50% {
         transform: scale(1.08);
-        box-shadow: 0 12px 48px rgba(102, 126, 234, 0.9), 0 0 0 15px rgba(102, 126, 234, 0.2);
+        box-shadow: var(--call-avatar-glow), 0 0 0 15px rgba(255, 255, 255, 0.15);
     }
 }
 
@@ -84,6 +113,7 @@
     font-weight: bold;
     margin-bottom: 15px;
     z-index: 1;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
 }
 
 /* 来电状态文字 */
@@ -167,11 +197,27 @@
     flex-direction: column;
     align-items: center;
     justify-content: space-between;
-    background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+    background: var(--call-dark-bg);
     color: white;
+    font-family: var(--call-font);
     padding: 40px 20px;
     position: relative;
     overflow: hidden;
+}
+
+/* 支持自定义背景图片 */
+.in-call-container[data-custom-bg="true"] {
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.in-call-container[data-custom-bg="true"]::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 0;
 }
 
 /* 通话背景动画 */
@@ -182,18 +228,14 @@
     left: -50%;
     width: 200%;
     height: 200%;
-    background: radial-gradient(circle, rgba(59, 130, 246, 0.1) 0%, transparent 50%);
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.05) 0%, transparent 50%);
     animation: rotate-bg 20s linear infinite;
+    z-index: 0;
 }
 
 @keyframes rotate-bg {
-    from {
-        transform: rotate(0deg);
-    }
-
-    to {
-        transform: rotate(360deg);
-    }
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
 }
 
 /* 通话顶部信息 */
@@ -206,15 +248,16 @@
     width: 120px;
     height: 120px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: var(--call-bg);
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 60px;
     margin: 0 auto 20px;
-    box-shadow: 0 8px 32px rgba(102, 126, 234, 0.4);
+    box-shadow: var(--call-avatar-glow);
     animation: avatar-pulse 2s ease-in-out infinite;
     overflow: hidden;
+    border: 3px solid rgba(255, 255, 255, 0.2);
 }
 
 .call-avatar img {
@@ -225,16 +268,13 @@
 }
 
 @keyframes avatar-pulse {
-
-    0%,
-    100% {
+    0%, 100% {
         transform: scale(1);
-        box-shadow: 0 8px 32px rgba(102, 126, 234, 0.4);
+        box-shadow: var(--call-avatar-glow);
     }
-
     50% {
         transform: scale(1.05);
-        box-shadow: 0 12px 48px rgba(102, 126, 234, 0.6);
+        box-shadow: var(--call-avatar-glow), 0 0 30px rgba(255, 255, 255, 0.1);
     }
 }
 
@@ -246,7 +286,7 @@
 
 .call-duration {
     font-size: 16px;
-    color: #94a3b8;
+    color: var(--call-dark-color);
 }
 
 /* 音频波形动画 */
@@ -261,44 +301,22 @@
 
 .audio-bar {
     width: 4px;
-    background: linear-gradient(180deg, #3b82f6 0%, #8b5cf6 100%);
+    background: var(--call-wave-color);
     border-radius: 2px;
     animation: audio-wave 1s ease-in-out infinite;
 }
 
-.audio-bar:nth-child(1) {
-    height: 20px;
-    animation-delay: 0s;
-}
-
-.audio-bar:nth-child(2) {
-    height: 35px;
-    animation-delay: 0.1s;
-}
-
-.audio-bar:nth-child(3) {
-    height: 50px;
-    animation-delay: 0.2s;
-}
-
-.audio-bar:nth-child(4) {
-    height: 35px;
-    animation-delay: 0.3s;
-}
-
-.audio-bar:nth-child(5) {
-    height: 20px;
-    animation-delay: 0.4s;
-}
+.audio-bar:nth-child(1) { height: 20px; animation-delay: 0s; }
+.audio-bar:nth-child(2) { height: 35px; animation-delay: 0.1s; }
+.audio-bar:nth-child(3) { height: 50px; animation-delay: 0.2s; }
+.audio-bar:nth-child(4) { height: 35px; animation-delay: 0.3s; }
+.audio-bar:nth-child(5) { height: 20px; animation-delay: 0.4s; }
 
 @keyframes audio-wave {
-
-    0%,
-    100% {
+    0%, 100% {
         transform: scaleY(0.5);
         opacity: 0.5;
     }
-
     50% {
         transform: scaleY(1);
         opacity: 1;
@@ -306,10 +324,9 @@
 }
 
 /* ========================================
-   通话字幕区域 (新版 - Apple Music 风格)
+   通话字幕区域 (Apple Music 风格)
    ======================================== */
 
-/* 字幕容器 - 固定高度可滚动 */
 .call-subtitle-area,
 .listening-subtitle-area {
     width: 100%;
@@ -321,7 +338,6 @@
     overflow-y: auto;
     overflow-x: hidden;
     flex-shrink: 0;
-    /* 隐藏滚动条但保留滚动功能 */
     scrollbar-width: none;
     -ms-overflow-style: none;
 }
@@ -331,7 +347,6 @@
     display: none;
 }
 
-/* 字幕文本容器 */
 .subtitle-line {
     display: inline-block;
     max-width: 100%;
@@ -350,7 +365,6 @@
     transform: translateY(0);
 }
 
-/* 字幕文本 */
 .subtitle-text {
     font-size: 16px;
     font-weight: 500;
@@ -360,48 +374,31 @@
     word-break: break-word;
 }
 
-/* 单个字符包装 */
 .subtitle-char {
     display: inline;
     transition: all 0.2s ease;
 }
 
-/* 已读过的字 - 明亮白色 */
 .subtitle-char.passed {
     color: rgba(255, 255, 255, 0.95);
 }
 
-/* 当前高亮的字 - 蓝色辉光 */
 .subtitle-char.active {
-    color: #60a5fa;
+    color: var(--call-wave-color);
     text-shadow:
-        0 0 8px rgba(96, 165, 250, 0.9),
-        0 0 16px rgba(96, 165, 250, 0.5),
-        0 0 24px rgba(96, 165, 250, 0.3);
-}
-
-/* 呼吸动画 - 当前字 */
-@keyframes charGlow {
-
-    0%,
-    100% {
-        text-shadow:
-            0 0 8px rgba(96, 165, 250, 0.9),
-            0 0 16px rgba(96, 165, 250, 0.5);
-    }
-
-    50% {
-        text-shadow:
-            0 0 12px rgba(96, 165, 250, 1),
-            0 0 24px rgba(96, 165, 250, 0.7),
-            0 0 32px rgba(96, 165, 250, 0.4);
-    }
-}
-
-.subtitle-char.active {
+        0 0 8px currentColor,
+        0 0 16px currentColor;
     animation: charGlow 1s ease-in-out infinite;
 }
 
+@keyframes charGlow {
+    0%, 100% {
+        text-shadow: 0 0 8px currentColor, 0 0 16px currentColor;
+    }
+    50% {
+        text-shadow: 0 0 12px currentColor, 0 0 24px currentColor, 0 0 32px currentColor;
+    }
+}
 
 /* 通话控制按钮 */
 .call-controls {
@@ -478,24 +475,23 @@
 
 .progress-bar-fill {
     height: 100%;
-    background: linear-gradient(90deg, #3b82f6 0%, #8b5cf6 100%);
+    background: var(--call-wave-color);
     border-radius: 3px;
     transition: width 0.3s;
-    box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+    box-shadow: 0 0 10px currentColor;
 }
 
 .progress-time {
     display: flex;
     justify-content: space-between;
     font-size: 12px;
-    color: #94a3b8;
+    color: var(--call-dark-color);
 }
 
 /* ========================================
    对话追踪 (Eavesdrop) 界面
    ======================================== */
 
-/* 对话追踪待机容器 */
 .eavesdrop-container {
     width: 100%;
     height: 100%;
@@ -505,11 +501,11 @@
     justify-content: center;
     background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
     color: white;
+    font-family: var(--call-font);
     position: relative;
     overflow: hidden;
 }
 
-/* 背景动画 */
 .eavesdrop-container::before {
     content: '';
     position: absolute;
@@ -519,7 +515,6 @@
     animation: pulse-bg 3s ease-in-out infinite;
 }
 
-/* 对话追踪图标 */
 .eavesdrop-icon {
     width: 120px;
     height: 120px;
@@ -535,7 +530,6 @@
     box-shadow: 0 8px 32px rgba(34, 197, 94, 0.6);
 }
 
-/* 对话追踪标题 */
 .eavesdrop-title {
     font-size: 28px;
     font-weight: bold;
@@ -543,7 +537,6 @@
     z-index: 1;
 }
 
-/* 状态文字 */
 .eavesdrop-status {
     font-size: 16px;
     opacity: 0.9;
@@ -553,7 +546,6 @@
     padding: 0 20px;
 }
 
-/* 按钮容器 */
 .eavesdrop-buttons {
     display: flex;
     gap: 30px;
@@ -561,7 +553,6 @@
     z-index: 1;
 }
 
-/* 对话追踪按钮 */
 .eavesdrop-btn {
     padding: 16px 32px;
     border-radius: 50px;
@@ -573,7 +564,6 @@
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* 忽略按钮 */
 .ignore-btn {
     background: rgba(255, 255, 255, 0.2);
     backdrop-filter: blur(10px);
@@ -584,7 +574,6 @@
     transform: translateY(-2px);
 }
 
-/* 监听按钮 */
 .listen-btn {
     background: #166534;
     box-shadow: 0 4px 20px rgba(22, 101, 52, 0.5);
@@ -608,12 +597,12 @@
     justify-content: space-between;
     background: linear-gradient(180deg, #1e3a2f 0%, #0f1f1a 100%);
     color: white;
+    font-family: var(--call-font);
     padding: 40px 20px;
     position: relative;
     overflow: hidden;
 }
 
-/* 监听背景动画 */
 .listening-container::before {
     content: '';
     position: absolute;
@@ -625,7 +614,6 @@
     animation: rotate-bg 20s linear infinite;
 }
 
-/* 监听顶部信息 */
 .listening-header {
     text-align: center;
     z-index: 1;
@@ -656,14 +644,10 @@
     color: #86efac;
 }
 
-/* 监听音频可视化 - 绿色主题 */
 .listening-visualizer .audio-bar {
     background: linear-gradient(180deg, #22c55e 0%, #16a34a 100%);
 }
 
-/* 监听字幕区域 - 样式已在 .call-subtitle-area 定义 */
-
-/* 说话人标签 */
 .subtitle-speaker {
     display: inline-block;
     background: rgba(34, 197, 94, 0.3);
@@ -675,7 +659,6 @@
     margin-bottom: 8px;
 }
 
-/* 停止监听按钮 */
 .listening-stop-btn {
     padding: 16px 40px;
     border-radius: 50px;
@@ -694,3 +677,128 @@
     transform: scale(1.05);
     box-shadow: 0 6px 30px rgba(220, 38, 38, 0.7);
 }
+
+/* ========================================
+   来电历史记录列表
+   ======================================== */
+
+.call-history-content {
+    padding: 15px;
+    flex: 1;
+    overflow-y: auto;
+}
+
+.call-history-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 200px;
+    color: var(--call-dark-color);
+}
+
+.call-history-empty-icon {
+    font-size: 48px;
+    margin-bottom: 15px;
+    opacity: 0.5;
+}
+
+.call-history-item {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    padding: 12px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.call-history-item:hover {
+    background: rgba(255, 255, 255, 0.1);
+    transform: translateX(3px);
+}
+
+.call-history-layout {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+}
+
+.call-history-avatar {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    overflow: hidden;
+    flex-shrink: 0;
+    background: var(--call-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.call-history-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.call-history-avatar-placeholder {
+    font-size: 24px;
+}
+
+.call-history-content-area {
+    flex: 1;
+    min-width: 0;
+}
+
+.call-history-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+.call-history-name {
+    font-size: 16px;
+    font-weight: 600;
+    color: white;
+}
+
+.call-history-status {
+    font-size: 12px;
+    padding: 2px 8px;
+    border-radius: 10px;
+}
+
+.call-history-status.completed { color: #4ade80; }
+.call-history-status.failed { color: #f87171; }
+.call-history-status.processing { color: #fbbf24; }
+
+.call-history-date {
+    font-size: 12px;
+    color: var(--call-dark-color);
+    margin-bottom: 8px;
+}
+
+.call-history-play-area {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    font-size: 13px;
+    color: var(--call-wave-color);
+}
+
+.call-history-play-icon { font-size: 16px; }
+.call-history-play-text { flex: 1; }
+.call-history-play-arrow { opacity: 0.5; }
+
+.call-playback-buttons {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    z-index: 1;
+}
+

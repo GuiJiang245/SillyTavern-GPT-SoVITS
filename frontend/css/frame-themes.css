@@ -1,0 +1,792 @@
+/* ========================================
+   frame-themes.css - 世界观框架主题
+   更多有设计感的来电框架
+   ======================================== */
+
+/* =========================================
+   📱 1. 现代手机 (默认) - iPhone 风格
+   ========================================= */
+
+#tts-mobile-root[data-frame-theme='modern'],
+#tts-mobile-root:not([data-frame-theme]) {
+  background: linear-gradient(160deg, #2d2d30 0%, #1a1a1c 100%);
+  border: none;
+  border-radius: 48px;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.5), inset 0 0 0 3px #3d3d40, inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+#tts-mobile-root[data-frame-theme='modern'] .mobile-screen,
+#tts-mobile-root:not([data-frame-theme]) .mobile-screen {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  right: 4px;
+  bottom: 4px;
+  width: auto;
+  height: auto;
+  border-radius: 44px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--s-load-bg, linear-gradient(180deg, #1c1c1e 0%, #0a0a0c 100%));
+}
+
+#tts-mobile-root[data-frame-theme='modern'] .mobile-notch,
+#tts-mobile-root:not([data-frame-theme]) .mobile-notch {
+  display: flex;
+  background: #000;
+}
+
+/* =========================================
+   🪞 2. 双面镜 - 哈利波特魔法镜
+   古铜雕花 + 神秘光晕
+   ========================================= */
+
+#tts-mobile-root[data-frame-theme='mirror'] {
+  /* 关键布局属性 - 确保手机可见 */
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  width: 300px;
+  height: 620px;
+  display: block;
+  visibility: visible;
+  opacity: 1;
+  /* 主题样式 */
+  background: radial-gradient(ellipse at 30% 20%, rgba(255, 215, 0, 0.15) 0%, transparent 50%),
+    linear-gradient(160deg, #8b6914 0%, #5c4a0e 40%, #3d2e06 100%);
+  border: none;
+  border-radius: 50% 50% 45% 45% / 55% 55% 45% 45%;
+  box-shadow: 0 20px 50px rgba(60, 40, 10, 0.6), inset 0 0 0 4px #b8860b, inset 0 0 0 8px #8b6914,
+    inset 0 2px 10px rgba(255, 215, 0, 0.3);
+}
+
+/* 雕花装饰 - 顶部 */
+#tts-mobile-root[data-frame-theme='mirror']::before {
+  content: '⚜';
+  position: absolute;
+  top: -5px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 30px;
+  color: #ffd700;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+  z-index: 200;
+}
+
+/* 雕花装饰 - 底部 */
+#tts-mobile-root[data-frame-theme='mirror']::after {
+  content: '⚜';
+  position: absolute;
+  bottom: -5px;
+  left: 50%;
+  transform: translateX(-50%) rotate(180deg);
+  font-size: 30px;
+  color: #ffd700;
+  text-shadow: 0 -2px 4px rgba(0, 0, 0, 0.5);
+  z-index: 200;
+}
+
+#tts-mobile-root[data-frame-theme='mirror'] .mobile-screen {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  width: auto;
+  height: auto;
+  border-radius: 48% 48% 42% 42% / 50% 50% 42% 42%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: radial-gradient(ellipse at 50% 30%, rgba(255, 255, 255, 0.08) 0%, transparent 60%),
+    var(--s-load-bg, linear-gradient(180deg, #2c1810 0%, #1a0f0a 100%));
+  box-shadow: inset 0 0 40px rgba(184, 134, 11, 0.15), inset 0 0 0 1px rgba(255, 215, 0, 0.2);
+}
+
+#tts-mobile-root[data-frame-theme='mirror'] .mobile-notch {
+  display: none;
+}
+
+#tts-mobile-root[data-frame-theme='mirror'] .status-bar {
+  color: #d4af37;
+  font-family: 'Cinzel', 'Times New Roman', serif;
+}
+
+#tts-mobile-root[data-frame-theme='mirror'] .mobile-home-bar {
+  background: linear-gradient(90deg, #8b6914, #ffd700, #8b6914);
+  border-radius: 20px;
+}
+
+#tts-mobile-root[data-frame-theme='mirror'] #tts-mobile-power-btn,
+#tts-mobile-root[data-frame-theme='mirror'] .side-btn {
+  display: none;
+}
+
+/* 双面镜 - 主屏图标竖排、加大间距并整体居中 */
+#tts-mobile-root[data-frame-theme='mirror'] #mobile-screen-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+}
+#tts-mobile-root[data-frame-theme='mirror'] .mobile-home-close-bar {
+  flex-shrink: 0;
+  width: 100%;
+}
+#tts-mobile-root[data-frame-theme='mirror'] .app-grid {
+  grid-template-columns: 1fr;
+  gap: 36px;
+  padding: 28px 56px 40px;
+  justify-items: center;
+  align-content: center;
+  flex: 1;
+  width: 100%;
+  max-width: 160px;
+  margin: 0 auto;
+  min-height: 0;
+}
+
+/* =========================================
+   🛸 3. 全息投影 - 赛博朋克
+   霓虹边框 + 扫描线 + 故障效果
+   ========================================= */
+
+#tts-mobile-root[data-frame-theme='holographic'] {
+  /* 关键布局属性 - 确保手机可见 */
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  width: 300px;
+  height: 620px;
+  display: block;
+  visibility: visible;
+  opacity: 1;
+  /* 主题样式 */
+  background: linear-gradient(135deg, rgba(0, 255, 255, 0.05) 0%, transparent 50%),
+    linear-gradient(225deg, rgba(255, 0, 255, 0.05) 0%, transparent 50%), rgba(5, 15, 25, 0.95);
+  border: 2px solid transparent;
+  border-image: linear-gradient(135deg, #00ffff, #ff00ff, #00ffff) 1;
+  border-radius: 12px;
+  box-shadow: 0 0 30px rgba(0, 255, 255, 0.3), 0 0 60px rgba(255, 0, 255, 0.15), inset 0 0 30px rgba(0, 255, 255, 0.05);
+  animation: holo-border 4s linear infinite;
+}
+
+@keyframes holo-border {
+  0%,
+  100% {
+    box-shadow: 0 0 30px rgba(0, 255, 255, 0.3), 0 0 60px rgba(255, 0, 255, 0.15);
+    filter: hue-rotate(0deg);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(255, 0, 255, 0.3), 0 0 80px rgba(0, 255, 255, 0.15);
+    filter: hue-rotate(30deg);
+  }
+}
+
+/* 角落装饰 */
+#tts-mobile-root[data-frame-theme='holographic']::before,
+#tts-mobile-root[data-frame-theme='holographic']::after {
+  content: '';
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border: 2px solid #00ffff;
+  z-index: 200;
+}
+
+#tts-mobile-root[data-frame-theme='holographic']::before {
+  top: 8px;
+  left: 8px;
+  border-right: none;
+  border-bottom: none;
+}
+
+#tts-mobile-root[data-frame-theme='holographic']::after {
+  bottom: 8px;
+  right: 8px;
+  border-left: none;
+  border-top: none;
+}
+
+#tts-mobile-root[data-frame-theme='holographic'] .mobile-screen {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  right: 6px;
+  bottom: 6px;
+  width: auto;
+  height: auto;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--s-load-bg, linear-gradient(180deg, #0a0a18 0%, #050510 100%));
+}
+
+/* 扫描线效果 */
+#tts-mobile-root[data-frame-theme='holographic'] .mobile-screen::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 255, 255, 0.03) 2px,
+    rgba(0, 255, 255, 0.03) 4px
+  );
+  pointer-events: none;
+  z-index: 100;
+}
+
+/* 移动扫描线 */
+#tts-mobile-root[data-frame-theme='holographic'] .mobile-screen::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent 20%, #00ffff 50%, transparent 80%);
+  animation: holo-scan 3s linear infinite;
+  z-index: 101;
+  pointer-events: none;
+}
+
+@keyframes holo-scan {
+  0% {
+    top: 0;
+    opacity: 0.8;
+  }
+  100% {
+    top: 100%;
+    opacity: 0.2;
+  }
+}
+
+#tts-mobile-root[data-frame-theme='holographic'] .mobile-notch {
+  display: none;
+}
+
+#tts-mobile-root[data-frame-theme='holographic'] .status-bar {
+  color: #00ffff;
+  font-family: 'Orbitron', 'Consolas', monospace;
+  text-shadow: 0 0 10px #00ffff;
+}
+
+#tts-mobile-root[data-frame-theme='holographic'] .mobile-home-bar {
+  background: linear-gradient(90deg, #00ffff, #ff00ff, #00ffff);
+  box-shadow: 0 0 15px rgba(0, 255, 255, 0.5);
+  animation: holo-bar 2s linear infinite;
+}
+
+@keyframes holo-bar {
+  0%,
+  100% {
+    opacity: 0.8;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+#tts-mobile-root[data-frame-theme='holographic'] #tts-mobile-power-btn,
+#tts-mobile-root[data-frame-theme='holographic'] .side-btn {
+  display: none;
+}
+
+/* =========================================
+   🧿 4. 传音玉简 - 古风仙侠
+   温润玉石 + 祥云纹理
+   ========================================= */
+
+#tts-mobile-root[data-frame-theme='jade'] {
+  /* 关键布局属性 - 确保手机可见 */
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  width: 300px;
+  height: 620px;
+  display: block;
+  visibility: visible;
+  opacity: 1;
+  /* 主题样式 */
+  background: radial-gradient(ellipse at 30% 30%, rgba(255, 255, 255, 0.4) 0%, transparent 50%),
+    linear-gradient(160deg, #c8e6c9 0%, #a5d6a7 30%, #81c784 60%, #66bb6a 100%);
+  border: none;
+  border-radius: 20px;
+  box-shadow: 0 15px 40px rgba(46, 125, 50, 0.3), inset 0 2px 15px rgba(255, 255, 255, 0.6),
+    inset 0 -3px 10px rgba(0, 80, 40, 0.2);
+}
+
+/* 祥云装饰 */
+#tts-mobile-root[data-frame-theme='jade']::before {
+  content: '☁';
+  position: absolute;
+  top: 10px;
+  right: 15px;
+  font-size: 18px;
+  color: rgba(255, 255, 255, 0.5);
+  z-index: 200;
+}
+
+#tts-mobile-root[data-frame-theme='jade']::after {
+  content: '☁';
+  position: absolute;
+  bottom: 10px;
+  left: 15px;
+  font-size: 18px;
+  color: rgba(255, 255, 255, 0.5);
+  transform: scaleX(-1);
+  z-index: 200;
+}
+
+#tts-mobile-root[data-frame-theme='jade'] .mobile-screen {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  right: 8px;
+  bottom: 8px;
+  width: auto;
+  height: auto;
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: radial-gradient(ellipse at 50% 20%, rgba(255, 255, 255, 0.15) 0%, transparent 50%),
+    var(--s-load-bg, linear-gradient(180deg, #f1f8e9 0%, #e8f5e9 100%));
+  box-shadow: inset 0 0 30px rgba(76, 175, 80, 0.1);
+}
+
+#tts-mobile-root[data-frame-theme='jade'] .mobile-notch {
+  display: none;
+}
+
+#tts-mobile-root[data-frame-theme='jade'] .status-bar {
+  color: #2e7d32;
+  font-family: 'Ma Shan Zheng', 'KaiTi', 'STKaiti', serif;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.5);
+}
+
+#tts-mobile-root[data-frame-theme='jade'] .mobile-home-bar {
+  background: linear-gradient(90deg, #81c784, #e8f5e9, #81c784);
+  box-shadow: 0 0 10px rgba(129, 199, 132, 0.4);
+}
+
+#tts-mobile-root[data-frame-theme='jade'] #tts-mobile-power-btn,
+#tts-mobile-root[data-frame-theme='jade'] .side-btn {
+  display: none;
+}
+
+/* =========================================
+   💎 5. 水晶棱镜 - 梦幻风格
+   彩虹折射 + 闪烁光点
+   ========================================= */
+
+#tts-mobile-root[data-frame-theme='crystal'] {
+  /* 关键布局属性 - 确保手机可见 */
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  width: 300px;
+  height: 620px;
+  display: block;
+  visibility: visible;
+  opacity: 1;
+  /* 主题样式 - 透明边框 + padding-box 让伪元素彩虹环露出 */
+  background: linear-gradient(135deg, rgba(255, 200, 200, 0.3) 0%, transparent 30%),
+    linear-gradient(225deg, rgba(200, 200, 255, 0.3) 0%, transparent 30%),
+    linear-gradient(315deg, rgba(200, 255, 200, 0.3) 0%, transparent 30%),
+    linear-gradient(45deg, rgba(255, 255, 200, 0.3) 0%, transparent 30%),
+    linear-gradient(180deg, #f8f9fa 0%, #e9ecef 100%);
+  background-clip: padding-box;
+  border: 3px solid transparent;
+  border-radius: 30px;
+  box-shadow: 0 20px 50px rgba(161, 140, 209, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.8),
+    inset 0 0 30px rgba(255, 255, 255, 0.5);
+  animation: crystal-shimmer 5s ease-in-out infinite;
+}
+
+/* 水晶棱镜 - 彩虹边框伪元素（保留圆角） */
+#tts-mobile-root[data-frame-theme='crystal']::before {
+  content: '';
+  position: absolute;
+  top: -3px;
+  left: -3px;
+  right: -3px;
+  bottom: -3px;
+  border-radius: 33px;
+  background: linear-gradient(135deg, #ff9a9e, #fad0c4, #a18cd1, #fbc2eb, #ff9a9e);
+  z-index: -1;
+  animation: crystal-border-flow 6s linear infinite;
+}
+
+@keyframes crystal-border-flow {
+  0% {
+    filter: hue-rotate(0deg);
+  }
+  100% {
+    filter: hue-rotate(360deg);
+  }
+}
+
+@keyframes crystal-shimmer {
+  0%,
+  100% {
+    filter: hue-rotate(0deg) brightness(1);
+  }
+  50% {
+    filter: hue-rotate(15deg) brightness(1.05);
+  }
+}
+
+#tts-mobile-root[data-frame-theme='crystal'] .mobile-screen {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  right: 6px;
+  bottom: 6px;
+  width: auto;
+  height: auto;
+  border-radius: 24px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: radial-gradient(circle at 20% 20%, rgba(255, 154, 158, 0.1) 0%, transparent 40%),
+    radial-gradient(circle at 80% 80%, rgba(161, 140, 209, 0.1) 0%, transparent 40%),
+    var(--s-load-bg, linear-gradient(180deg, #fafafa 0%, #f0f0f0 100%));
+}
+
+/* 棱镜折射光斑 */
+#tts-mobile-root[data-frame-theme='crystal'] .mobile-screen::before {
+  content: '';
+  position: absolute;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.5) 0%, rgba(255, 200, 255, 0.2) 40%, transparent 70%);
+  top: 10%;
+  left: 15%;
+  animation: crystal-prism-spot 8s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 1;
+}
+
+@keyframes crystal-prism-spot {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+    opacity: 0.8;
+  }
+  25% {
+    transform: translate(80px, 60px) scale(1.2);
+    opacity: 0.5;
+  }
+  50% {
+    transform: translate(40px, 120px) scale(0.9);
+    opacity: 0.9;
+  }
+  75% {
+    transform: translate(-20px, 80px) scale(1.1);
+    opacity: 0.6;
+  }
+}
+
+/* 内部彩虹流光 */
+#tts-mobile-root[data-frame-theme='crystal'] .mobile-screen::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(
+    105deg,
+    transparent 30%,
+    rgba(255, 154, 158, 0.06) 40%,
+    rgba(250, 208, 196, 0.08) 50%,
+    rgba(161, 140, 209, 0.06) 60%,
+    transparent 70%
+  );
+  animation: crystal-rainbow-flow 10s linear infinite;
+  pointer-events: none;
+  z-index: 0;
+}
+
+@keyframes crystal-rainbow-flow {
+  0% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  100% {
+    transform: translate(-25%, -25%) rotate(360deg);
+  }
+}
+
+#tts-mobile-root[data-frame-theme='crystal'] .mobile-notch {
+  display: none;
+}
+
+#tts-mobile-root[data-frame-theme='crystal'] .status-bar {
+  color: #6b5b95;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
+}
+
+#tts-mobile-root[data-frame-theme='crystal'] .mobile-home-bar {
+  background: linear-gradient(90deg, #ff9a9e, #fad0c4, #a18cd1);
+  box-shadow: 0 0 15px rgba(161, 140, 209, 0.4);
+}
+
+#tts-mobile-root[data-frame-theme='crystal'] #tts-mobile-power-btn,
+#tts-mobile-root[data-frame-theme='crystal'] .side-btn {
+  display: none;
+}
+
+/* =========================================
+   🌌 6. 星空深渊 - 宇宙风格
+   星星点点 + 银河渐变
+   ========================================= */
+
+#tts-mobile-root[data-frame-theme='cosmos'] {
+  /* 关键布局属性 - 确保桌面端手机可见 */
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  width: 300px;
+  height: 620px;
+  display: block;
+  visibility: visible;
+  opacity: 1;
+  background: radial-gradient(2px 2px at 20% 30%, white, transparent),
+    radial-gradient(2px 2px at 40% 70%, rgba(255, 255, 255, 0.8), transparent),
+    radial-gradient(1px 1px at 60% 20%, white, transparent),
+    radial-gradient(2px 2px at 80% 60%, rgba(255, 255, 255, 0.6), transparent),
+    radial-gradient(1px 1px at 10% 80%, white, transparent),
+    radial-gradient(1px 1px at 90% 40%, rgba(255, 255, 255, 0.8), transparent),
+    radial-gradient(2px 2px at 50% 90%, white, transparent),
+    linear-gradient(160deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-radius: 35px;
+  box-shadow: 0 25px 60px rgba(48, 43, 99, 0.5), inset 0 0 50px rgba(138, 43, 226, 0.1);
+  animation: cosmos-twinkle 3s ease-in-out infinite;
+}
+
+@keyframes cosmos-twinkle {
+  0%,
+  100% {
+    box-shadow: 0 25px 60px rgba(48, 43, 99, 0.5), inset 0 0 50px rgba(138, 43, 226, 0.1);
+  }
+  50% {
+    box-shadow: 0 25px 60px rgba(48, 43, 99, 0.6), inset 0 0 60px rgba(138, 43, 226, 0.15);
+  }
+}
+
+#tts-mobile-root[data-frame-theme='cosmos'] .mobile-screen {
+  position: absolute;
+  top: 5px;
+  left: 5px;
+  right: 5px;
+  bottom: 5px;
+  width: auto;
+  height: auto;
+  border-radius: 30px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--s-load-bg, linear-gradient(180deg, #1a1a2e 0%, #16213e 50%, #0f0f1a 100%));
+}
+
+/* 星空深渊 - 流星动画 */
+#tts-mobile-root[data-frame-theme='cosmos'] .mobile-screen::before {
+  content: '';
+  position: absolute;
+  top: -100%;
+  left: -50%;
+  width: 4px;
+  height: 80px;
+  background: linear-gradient(180deg, transparent, rgba(255, 255, 255, 0.9), transparent);
+  border-radius: 2px;
+  animation: cosmos-meteor 4s linear infinite;
+  pointer-events: none;
+  z-index: 100;
+}
+
+@keyframes cosmos-meteor {
+  0% {
+    transform: translate(0, 0) rotate(-25deg);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 0.5;
+  }
+  100% {
+    transform: translate(200px, 800px) rotate(-25deg);
+    opacity: 0;
+  }
+}
+
+/* 星空深渊 - 星云渐变旋转 */
+#tts-mobile-root[data-frame-theme='cosmos'] .mobile-screen::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: conic-gradient(
+    from 0deg at 50% 50%,
+    transparent 0deg,
+    rgba(138, 43, 226, 0.08) 60deg,
+    transparent 120deg,
+    rgba(100, 149, 237, 0.06) 180deg,
+    transparent 240deg,
+    rgba(72, 61, 139, 0.08) 300deg,
+    transparent 360deg
+  );
+  animation: cosmos-nebula-rotate 25s linear infinite;
+  pointer-events: none;
+  z-index: 0;
+}
+
+@keyframes cosmos-nebula-rotate {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+#tts-mobile-root[data-frame-theme='cosmos'] .mobile-notch {
+  display: none;
+}
+
+#tts-mobile-root[data-frame-theme='cosmos'] .status-bar {
+  color: #b8b8d1;
+  text-shadow: 0 0 10px rgba(138, 43, 226, 0.5);
+}
+
+#tts-mobile-root[data-frame-theme='cosmos'] .mobile-home-bar {
+  background: linear-gradient(90deg, #302b63, #8a2be2, #302b63);
+  box-shadow: 0 0 15px rgba(138, 43, 226, 0.5);
+}
+
+#tts-mobile-root[data-frame-theme='cosmos'] #tts-mobile-power-btn,
+#tts-mobile-root[data-frame-theme='cosmos'] .side-btn {
+  display: none;
+}
+
+/* =========================================
+   📱 移动端 - 简洁全屏模式
+   使用高优先级选择器确保所有框架主题正常显示
+   ========================================= */
+
+@media screen and (max-width: 768px) {
+  /* 移动端：显式隐藏标记为 mobile-hidden 的手机壳 */
+  #tts-mobile-root.mobile-hidden {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+  }
+
+  /* 为每个框架主题单独设置，确保高优先级覆盖 */
+  #tts-mobile-root[data-frame-theme='modern'],
+  #tts-mobile-root[data-frame-theme='mirror'],
+  #tts-mobile-root[data-frame-theme='holographic'],
+  #tts-mobile-root[data-frame-theme='jade'],
+  #tts-mobile-root[data-frame-theme='crystal'],
+  #tts-mobile-root[data-frame-theme='cosmos'],
+  #tts-mobile-root:not([data-frame-theme]),
+  #tts-mobile-root {
+    /* 确保手机可见 */
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    /* 全屏布局 */
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    /* 手机端跟随主题背景色 */
+    background: var(--s-load-bg, #1a1a1e) !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    animation: none !important;
+    filter: none !important;
+    transform: none !important;
+  }
+
+  /* 隐藏所有装饰元素 */
+  #tts-mobile-root[data-frame-theme]::before,
+  #tts-mobile-root[data-frame-theme]::after,
+  #tts-mobile-root::before,
+  #tts-mobile-root::after {
+    display: none !important;
+    content: none !important;
+  }
+
+  /* 屏幕内容 - 所有主题统一样式 */
+  #tts-mobile-root[data-frame-theme='modern'] .mobile-screen,
+  #tts-mobile-root[data-frame-theme='mirror'] .mobile-screen,
+  #tts-mobile-root[data-frame-theme='holographic'] .mobile-screen,
+  #tts-mobile-root[data-frame-theme='jade'] .mobile-screen,
+  #tts-mobile-root[data-frame-theme='crystal'] .mobile-screen,
+  #tts-mobile-root[data-frame-theme='cosmos'] .mobile-screen,
+  #tts-mobile-root:not([data-frame-theme]) .mobile-screen,
+  #tts-mobile-root .mobile-screen {
+    display: flex !important;
+    flex-direction: column !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    border-radius: 0 !important;
+    /* 手机端跟随主题背景色 */
+    background: var(--s-load-bg, #1a1a1e) !important;
+    box-shadow: none !important;
+  }
+
+  /* 保留屏幕内特效（扫描线、仙气等），仅外壳 ::before/::after 已在上方隐藏 */
+
+  /* 手机端状态栏使用 UI 专用变量 */
+  #tts-mobile-root[data-frame-theme] .status-bar,
+  #tts-mobile-root .status-bar {
+    color: var(--ui-text-primary, #333) !important;
+    /* 使用 UI 描边增强可读性 */
+    text-shadow: var(--ui-text-stroke, none) !important;
+    font-family: inherit !important;
+  }
+
+  /* 手机端 Home 条跟随主题 */
+  #tts-mobile-root[data-frame-theme] .mobile-home-bar,
+  #tts-mobile-root .mobile-home-bar {
+    background: var(
+      --s-play-bg,
+      linear-gradient(90deg, rgba(100, 100, 200, 0.5), rgba(150, 150, 255, 0.7), rgba(100, 100, 200, 0.5))
+    ) !important;
+    box-shadow: none !important;
+    animation: none !important;
+  }
+
+  /* 隐藏灵动岛和侧边按钮 */
+  #tts-mobile-root .mobile-notch,
+  #tts-mobile-root .side-btn,
+  #tts-mobile-root #tts-mobile-power-btn {
+    display: none !important;
+  }
+}

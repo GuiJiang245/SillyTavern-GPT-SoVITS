@@ -3,25 +3,22 @@
 // 插件路径: data/default-user/extensions/st-direct-tts/index.js
 // 参考 LittleWhiteBox: public/ 目录在浏览器中被映射为根路径 /
 // 从当前目录向上4级到达 SillyTavern 根,然后访问 script.js 和 scripts/extensions.js
-import { eventSource, event_types } from '../../../../script.js';
-import { extension_settings, getContext } from '../../../extensions.js';
 
 // 导入子模块
-import * as TTS_Utils from './frontend/js/utils.js';
 import { TTS_API } from './frontend/js/api.js';
-import { TTS_State } from './frontend/js/state.js';
 import { TTS_Parser } from './frontend/js/dom_parser.js';
-import { TTS_Scheduler } from './frontend/js/scheduler.js';
 import { TTS_Events } from './frontend/js/events.js';
+import { TTS_Scheduler } from './frontend/js/scheduler.js';
+import { TTS_State } from './frontend/js/state.js';
 import * as TTS_Templates from './frontend/js/ui_templates.js';
-import { SpeakerManager } from './frontend/js/speaker_manager.js';
+import * as TTS_Utils from './frontend/js/utils.js';
 
-import { TTS_UI } from './frontend/js/ui_main.js';
-import './frontend/js/ui_dashboard.js';  // 导入 ui_dashboard.js 以加载事件绑定函数
+import { ChatEventListener } from './frontend/js/chat_event_listener.js';
 import { LLM_Client } from './frontend/js/llm_client.js';
 import { TTS_Mobile } from './frontend/js/mobile_ui.js';
-import { WebSocketManager } from './frontend/js/websocket_manager.js';
-import { ChatEventListener } from './frontend/js/chat_event_listener.js';
+import * as ThemeManager from './frontend/js/theme_manager.js'; // 主题管理器
+import './frontend/js/ui_dashboard.js'; // 导入 ui_dashboard.js 以加载事件绑定函数
+import { TTS_UI } from './frontend/js/ui_main.js';
 
 // ================= 1. 配置区域 =================
 const lsConfig = localStorage.getItem('tts_plugin_remote_config');
@@ -61,6 +58,7 @@ window.TTS_Scheduler = TTS_Scheduler;
 window.TTS_Events = TTS_Events;
 window.TTS_Templates = TTS_Templates;
 window.LLM_Client = LLM_Client;  // 暴露 LLM_Client 供 mobile_ui.js 使用
+window.TTS_ThemeManager = ThemeManager;  // 暴露主题管理器
 // 不要覆盖整个 window.TTS_UI,只添加 Templates
 // ui_main.js 的 IIFE 已经初始化了 window.TTS_UI.CTX
 if (!window.TTS_UI.Templates) {
@@ -79,6 +77,11 @@ function initPlugin() {
 
     document.body.setAttribute('data-bubble-style', styleToApply);
     console.log(`🎨 [Init] 皮肤已加载: ${styleToApply}`);
+    
+    // 初始化主题管理器 (框架主题 + 自定义背景)
+    ThemeManager.initThemeManager();
+    ThemeManager.observeCallContainers();
+    console.log(`🖼️ [Init] 主题管理器已初始化`);
 
     // 2. 模块初始化
     TTS_API.init(MANAGER_API);
@@ -92,7 +95,17 @@ function initPlugin() {
     const CACHE = TTS_State.CACHE;
     const Scheduler = TTS_Scheduler;
 
-    // 3. 加载全局 CSS
+    // 3. 加载 Font Awesome
+    if (!document.querySelector('link[href*="font-awesome"]')) {
+        const faLink = document.createElement('link');
+        faLink.rel = 'stylesheet';
+        faLink.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css';
+        faLink.crossOrigin = 'anonymous';
+        document.head.appendChild(faLink);
+        console.log('🎨 [Init] Font Awesome 已加载');
+    }
+
+    // 4. 加载全局 CSS
     TTS_Utils.loadGlobalCSS(`${MANAGER_API}/static/css/style.css?t=${new Date().getTime()}`, (cssContent) => {
         // CSS加载完毕后，手动扫描一次
         if (TTS_Parser.scan) TTS_Parser.scan();
@@ -159,6 +172,21 @@ function initPlugin() {
         })
         .catch(err => {
             console.error("❌ [TTS] 手机 App 样式 CSS 加载失败:", err);
+        });
+
+    // 加载 frame-themes.css (世界观框架主题)
+    const frameThemesCssUrl = `${MANAGER_API}/static/css/frame-themes.css?t=${new Date().getTime()}`;
+    fetch(frameThemesCssUrl)
+        .then(response => response.text())
+        .then(cssText => {
+            const style = document.createElement('style');
+            style.id = 'tts-frame-themes-style';
+            style.textContent = cssText;
+            document.head.appendChild(style);
+            console.log("✅ [TTS] 框架主题 CSS 已加载成功！");
+        })
+        .catch(err => {
+            console.error("❌ [TTS] 框架主题 CSS 加载失败:", err);
         });
 
     // 4. 定义核心回调函数 (传给 UI 模块使用)
