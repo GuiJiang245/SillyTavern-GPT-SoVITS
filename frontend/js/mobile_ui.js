@@ -316,6 +316,11 @@ export const TTS_Mobile = window.TTS_Mobile;
       ) {
         return;
       }
+      // 手机端：屏幕内任意区域都不触发拖拽，否则会吃掉「点击播放」和设置页滑动
+      const isMobile = window.matchMedia('(max-width: 768px)').matches;
+      if (isMobile && e.target.closest('#mobile-screen-content')) {
+        return;
+      }
 
       isDragging = true;
       phone.style.cursor = 'grabbing';

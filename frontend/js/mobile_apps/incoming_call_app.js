@@ -191,14 +191,15 @@ function renderHistoryList($content, history, container, createNavbar) {
 
     $content.html(historyHtml);
 
-    // 绑定点击事件 - 全屏播放
-    $content.find('.call-history-item').click(function (e) {
+    // 绑定点击/触摸事件 - 全屏播放（touchend 确保手机端点击播放有反应）
+    function onPlayHistory(e) {
+        if (e.type === 'touchend') e.preventDefault();
         // 如果点击的是下载按钮,不触发播放
         if ($(e.target).closest('.call-history-download-btn').length > 0) {
             return;
         }
 
-        const callId = $(this).data('call-id');
+        const callId = $(e.currentTarget).data('call-id');
         const call = history.find(c => c.id === callId);
 
         if (!call || call.status !== 'completed' || !call.audio_url) {
@@ -210,7 +211,8 @@ function renderHistoryList($content, history, container, createNavbar) {
 
         // 进入全屏播放界面
         showHistoryPlaybackUI(container, call, createNavbar);
-    });
+    }
+    $content.find('.call-history-item').on('click touchend', onPlayHistory);
 
     // 绑定下载按钮点击事件
     $content.find('.call-history-download-btn').click(async function (e) {
